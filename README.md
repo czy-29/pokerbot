@@ -1,1 +1,1 @@
-# template-min-rs
+# pokerbot

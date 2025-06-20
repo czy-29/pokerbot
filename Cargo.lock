@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "template-min-rs"
+name = "pokerbot"
 version = "0.0.1"
 dependencies = [
  "version_check",

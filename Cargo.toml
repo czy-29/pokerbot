@@ -1,15 +1,15 @@
 [package]
-name = "template-min-rs"
+name = "pokerbot"
 authors = ["29 <791603901@qq.com>"]
 version = "0.0.1"
 license = "MIT/Apache-2.0"
 readme = "README.md"
-keywords = ["template"]
-categories = ["multimedia::audio"]
-repository = "https://github.com/czy-29/template-min-rs"
-homepage = "https://github.com/czy-29/template-min-rs"
+keywords = ["nlh", "holdem", "gameplay", "ai", "terminal"]
+categories = ["command-line-utilities", "game-development", "games", "mathematics", "simulation"]
+repository = "https://github.com/czy-29/pokerbot"
+homepage = "https://github.com/czy-29/pokerbot"
 description = """
-🚧 Template for Rust repositories used by `czy-29` (WIP, nothing usable for now).
+🚧 A Texas Hold'em Heads up pokerbot game binary and library abstraction (WIP, nothing usable for now).
 """
 edition = "2024"
 
