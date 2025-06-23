@@ -1,3 +1,4 @@
+use rand::prelude::*;
 use std::{
     fmt::{self, Display, Formatter},
     str::FromStr,
@@ -230,6 +231,16 @@ impl Default for Deck {
 use std::array::IntoIter;
 
 impl Deck {
+    pub fn shuffle(&mut self) {
+        self.0.shuffle(&mut rand::rng());
+    }
+
+    pub fn shuffled(&self) -> Self {
+        let mut deck = *self;
+        deck.shuffle();
+        deck
+    }
+
     pub fn deal(&self) -> IntoIter<Card, 52> {
         self.0.into_iter()
     }
