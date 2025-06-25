@@ -83,6 +83,10 @@ impl Suit {
     pub fn display_unicode(self) -> UnicodeSuit {
         UnicodeSuit(self)
     }
+
+    pub fn display_emoji(self) -> EmojiSuit {
+        EmojiSuit(self)
+    }
 }
 
 impl FromStr for Suit {
@@ -127,6 +131,10 @@ impl Card {
 
     pub fn display_unicode(self) -> UnicodeCard {
         UnicodeCard(self)
+    }
+
+    pub fn display_emoji(self) -> EmojiCard {
+        EmojiCard(self)
     }
 }
 
@@ -191,6 +199,30 @@ pub mod display {
     impl Display for UnicodeCard {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
             write!(f, "{}{}", self.0.value(), self.0.suit().display_unicode())
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+    pub struct EmojiSuit(pub(super) Suit);
+
+    impl Display for EmojiSuit {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            let emoji = match self.0 {
+                Suit::Spades => "♠️",
+                Suit::Hearts => "♥️",
+                Suit::Diamonds => "♦️",
+                Suit::Clubs => "♣️",
+            };
+            write!(f, "{}", emoji)
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+    pub struct EmojiCard(pub(super) Card);
+
+    impl Display for EmojiCard {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            write!(f, "{}{}", self.0.value(), self.0.suit().display_emoji())
         }
     }
 }
