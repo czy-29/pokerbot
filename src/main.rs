@@ -4,8 +4,10 @@ fn main() {
     let mut deck = Deck::default().shuffled();
 
     for (i, card) in deck.deal().enumerate() {
-        if i % 5 == 0 && i != 0 {
-            println!();
+        match i % 5 {
+            0 if i != 0 => println!(),
+            3 | 4 => print!(" "),
+            _ => (),
         }
 
         print!("{} ", card.display_unicode());
@@ -15,8 +17,10 @@ fn main() {
     println!();
 
     for (i, card) in deck.deal().enumerate() {
-        if i % 5 == 0 {
-            println!();
+        match i % 5 {
+            0 => println!(),
+            3 | 4 => print!(" "),
+            _ => (),
         }
 
         print!("{} ", card.display_ascii());
