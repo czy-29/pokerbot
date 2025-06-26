@@ -227,6 +227,8 @@ pub mod display {
     }
 }
 
+pub mod headsup;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Deck([Card; 52]);
 
