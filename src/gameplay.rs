@@ -76,16 +76,16 @@ pub enum Suit {
 use display::*;
 
 impl Suit {
-    pub fn display_ascii(self) -> AsciiSuit {
-        AsciiSuit(self)
+    pub fn display_ascii(self) -> SuitDisplay {
+        DisplayMode::Ascii.suit(self)
     }
 
-    pub fn display_unicode(self) -> UnicodeSuit {
-        UnicodeSuit(self)
+    pub fn display_unicode(self) -> SuitDisplay {
+        DisplayMode::Unicode.suit(self)
     }
 
-    pub fn display_emoji(self) -> EmojiSuit {
-        EmojiSuit(self)
+    pub fn display_emoji(self) -> SuitDisplay {
+        DisplayMode::Emoji.suit(self)
     }
 }
 
@@ -125,16 +125,16 @@ impl Card {
         self.1
     }
 
-    pub fn display_ascii(self) -> AsciiCard {
-        AsciiCard(self)
+    pub fn display_ascii(self) -> CardDisplay {
+        DisplayMode::Ascii.card(self)
     }
 
-    pub fn display_unicode(self) -> UnicodeCard {
-        UnicodeCard(self)
+    pub fn display_unicode(self) -> CardDisplay {
+        DisplayMode::Unicode.card(self)
     }
 
-    pub fn display_emoji(self) -> EmojiCard {
-        EmojiCard(self)
+    pub fn display_emoji(self) -> CardDisplay {
+        DisplayMode::Emoji.card(self)
     }
 }
 
@@ -155,74 +155,70 @@ pub mod display {
     use super::*;
 
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub struct AsciiSuit(pub(super) Suit);
+    pub(super) enum DisplayMode {
+        Ascii,
+        Unicode,
+        Emoji,
+    }
 
-    impl Display for AsciiSuit {
+    impl DisplayMode {
+        pub fn suit(self, suit: Suit) -> SuitDisplay {
+            SuitDisplay { suit, mode: self }
+        }
+
+        pub fn card(self, card: Card) -> CardDisplay {
+            CardDisplay { card, mode: self }
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+    pub struct SuitDisplay {
+        pub(super) suit: Suit,
+        pub(super) mode: DisplayMode,
+    }
+
+    impl Display for SuitDisplay {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            let symbol = match self.0 {
-                Suit::Spades => 's',
-                Suit::Hearts => 'h',
-                Suit::Diamonds => 'd',
-                Suit::Clubs => 'c',
+            let str = match self.suit {
+                Suit::Spades => match self.mode {
+                    DisplayMode::Ascii => "s",
+                    DisplayMode::Unicode => "♠",
+                    DisplayMode::Emoji => "♠️",
+                },
+                Suit::Hearts => match self.mode {
+                    DisplayMode::Ascii => "h",
+                    DisplayMode::Unicode => "♥",
+                    DisplayMode::Emoji => "♥️",
+                },
+                Suit::Diamonds => match self.mode {
+                    DisplayMode::Ascii => "d",
+                    DisplayMode::Unicode => "♦",
+                    DisplayMode::Emoji => "♦️",
+                },
+                Suit::Clubs => match self.mode {
+                    DisplayMode::Ascii => "c",
+                    DisplayMode::Unicode => "♣",
+                    DisplayMode::Emoji => "♣️",
+                },
             };
-            write!(f, "{}", symbol)
+            write!(f, "{}", str)
         }
     }
 
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub struct AsciiCard(pub(super) Card);
-
-    impl Display for AsciiCard {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            write!(f, "{}{}", self.0.value(), self.0.suit().display_ascii())
-        }
+    pub struct CardDisplay {
+        pub(super) card: Card,
+        pub(super) mode: DisplayMode,
     }
 
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub struct UnicodeSuit(pub(super) Suit);
-
-    impl Display for UnicodeSuit {
+    impl Display for CardDisplay {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            let symbol = match self.0 {
-                Suit::Spades => '♠',
-                Suit::Hearts => '♥',
-                Suit::Diamonds => '♦',
-                Suit::Clubs => '♣',
-            };
-            write!(f, "{}", symbol)
-        }
-    }
-
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub struct UnicodeCard(pub(super) Card);
-
-    impl Display for UnicodeCard {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            write!(f, "{}{}", self.0.value(), self.0.suit().display_unicode())
-        }
-    }
-
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub struct EmojiSuit(pub(super) Suit);
-
-    impl Display for EmojiSuit {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            let emoji = match self.0 {
-                Suit::Spades => "♠️",
-                Suit::Hearts => "♥️",
-                Suit::Diamonds => "♦️",
-                Suit::Clubs => "♣️",
-            };
-            write!(f, "{}", emoji)
-        }
-    }
-
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub struct EmojiCard(pub(super) Card);
-
-    impl Display for EmojiCard {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            write!(f, "{}{}", self.0.value(), self.0.suit().display_emoji())
+            write!(
+                f,
+                "{}{}",
+                self.card.value(),
+                self.mode.suit(self.card.suit())
+            )
         }
     }
 }
