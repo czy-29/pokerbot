@@ -19,7 +19,10 @@ pub enum SNGSpeed {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GameType {
-    Cash(CashBuyin),
+    Cash {
+        buyin: CashBuyin,
+        hands: Option<u16>,
+    },
     SNG(SNGSpeed),
 }
 
