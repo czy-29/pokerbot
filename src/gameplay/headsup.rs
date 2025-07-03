@@ -3,6 +3,7 @@ pub enum CashBuyin {
     BB15,
     BB30,
     BB50,
+    BB75,
     BB100,
     BB150,
     BB200,
