@@ -82,14 +82,14 @@ impl Observer {
 pub struct Game;
 
 impl Game {
-    pub fn new(_game_type: GameType) -> (Self, [Player; 2]) {
+    pub fn new(_game_type: GameType) -> (Self, Player, Player) {
         let player0 = Player {
             visibility: Visibility::Player0,
         };
         let player1 = Player {
             visibility: Visibility::Player1,
         };
-        (Self, [player0, player1])
+        (Self, player0, player1)
     }
 
     pub fn observer(&mut self, visibility: Visibility) -> Option<Observer> {
