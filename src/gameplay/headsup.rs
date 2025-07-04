@@ -79,6 +79,14 @@ impl Observer {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum GameOver {
+    Defeated(bool),
+    ExitAbandon(bool),
+    ExitCheckout(u32, u32),
+    HandsReached(u32, u32),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Game;
 
 impl Game {
@@ -96,13 +104,17 @@ impl Game {
         Some(Observer(Player { visibility }))
     }
 
-    pub async fn run_hand(&mut self) {
+    pub async fn run_hand(&mut self) -> Option<GameOver> {
         // Placeholder for the game logic
         // This function would contain the main game loop and logic for running a hand.
+        None
     }
 
-    pub async fn run(self) {
-        // Placeholder for the game logic
-        // This function would contain the main game loop and logic for running the game.
+    pub async fn run(mut self) -> GameOver {
+        loop {
+            if let Some(game_over) = self.run_hand().await {
+                return game_over;
+            }
+        }
     }
 }
