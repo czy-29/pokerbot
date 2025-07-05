@@ -1,4 +1,4 @@
-use pokerbot::gameplay::Deck;
+use pokerbot::gameplay::{Deck, DisplayMode};
 
 fn main() {
     let mut deck = Deck::default().shuffled();
@@ -10,7 +10,7 @@ fn main() {
             _ => (),
         }
 
-        print!("{}  ", card.display_emoji());
+        print!("{}  ", card.display(DisplayMode::Emoji));
     }
 
     deck.shuffle();
@@ -23,7 +23,7 @@ fn main() {
             _ => (),
         }
 
-        print!("{} ", card.display_unicode());
+        print!("{} ", card.display(DisplayMode::Unicode));
     }
 
     deck.shuffle();
@@ -36,6 +36,6 @@ fn main() {
             _ => (),
         }
 
-        print!("{} ", card.display_ascii());
+        print!("{} ", card.display(DisplayMode::Ascii));
     }
 }

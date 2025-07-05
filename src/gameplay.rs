@@ -66,6 +66,13 @@ impl FromStr for Value {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum DisplayMode {
+    Ascii,
+    Unicode,
+    Emoji,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Suit {
     Spades,
     Hearts,
@@ -76,16 +83,8 @@ pub enum Suit {
 use display::*;
 
 impl Suit {
-    pub fn display_ascii(self) -> SuitDisplay {
-        DisplayMode::Ascii.suit(self)
-    }
-
-    pub fn display_unicode(self) -> SuitDisplay {
-        DisplayMode::Unicode.suit(self)
-    }
-
-    pub fn display_emoji(self) -> SuitDisplay {
-        DisplayMode::Emoji.suit(self)
+    pub fn display(self, mode: DisplayMode) -> SuitDisplay {
+        SuitDisplay { suit: self, mode }
     }
 }
 
@@ -125,16 +124,8 @@ impl Card {
         self.1
     }
 
-    pub fn display_ascii(self) -> CardDisplay {
-        DisplayMode::Ascii.card(self)
-    }
-
-    pub fn display_unicode(self) -> CardDisplay {
-        DisplayMode::Unicode.card(self)
-    }
-
-    pub fn display_emoji(self) -> CardDisplay {
-        DisplayMode::Emoji.card(self)
+    pub fn display(self, mode: DisplayMode) -> CardDisplay {
+        CardDisplay { card: self, mode }
     }
 }
 
@@ -153,23 +144,6 @@ impl FromStr for Card {
 
 pub mod display {
     use super::*;
-
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-    pub(super) enum DisplayMode {
-        Ascii,
-        Unicode,
-        Emoji,
-    }
-
-    impl DisplayMode {
-        pub fn suit(self, suit: Suit) -> SuitDisplay {
-            SuitDisplay { suit, mode: self }
-        }
-
-        pub fn card(self, card: Card) -> CardDisplay {
-            CardDisplay { card, mode: self }
-        }
-    }
 
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct SuitDisplay {
@@ -217,7 +191,7 @@ pub mod display {
                 f,
                 "{}{}",
                 self.card.value(),
-                self.mode.suit(self.card.suit())
+                self.card.suit().display(self.mode)
             )
         }
     }
