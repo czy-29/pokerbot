@@ -53,4 +53,6 @@ fn main() {
 
         print!("{} ", card.display(DisplayMode::Ascii));
     }
+
+    println!();
 }
