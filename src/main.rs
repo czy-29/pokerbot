@@ -1,5 +1,4 @@
 use pokerbot::gameplay::{Deck, DisplayMode};
-use std::io::Write;
 
 fn main() {
     // init:
@@ -61,13 +60,6 @@ fn main() {
     }
 
     println!();
-
-    println!();
-    print!("input: ");
-    std::io::stdout().flush().unwrap();
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    println!("output: {}", input.trim());
 
     // drop:
     // Only when `ColoredEmoji && white`
