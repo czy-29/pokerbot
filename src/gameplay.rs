@@ -69,7 +69,14 @@ impl FromStr for Value {
 pub enum DisplayMode {
     Ascii,
     Unicode,
+    ColoredUnicode,
     ColoredEmoji,
+}
+
+impl DisplayMode {
+    pub fn is_unicode(self) -> bool {
+        matches!(self, Self::Unicode | Self::ColoredUnicode)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -156,22 +163,24 @@ pub mod display {
             let str = match self.suit {
                 Suit::Spades => match self.mode {
                     DisplayMode::Ascii => "s",
-                    DisplayMode::Unicode => "♠",
+                    DisplayMode::Unicode | DisplayMode::ColoredUnicode => "♠",
                     DisplayMode::ColoredEmoji => "♠️",
                 },
                 Suit::Hearts => match self.mode {
                     DisplayMode::Ascii => "h",
                     DisplayMode::Unicode => "♥",
+                    DisplayMode::ColoredUnicode => "\x1b[91m♥\x1b[0m",
                     DisplayMode::ColoredEmoji => "♥️",
                 },
                 Suit::Diamonds => match self.mode {
                     DisplayMode::Ascii => "d",
                     DisplayMode::Unicode => "♦",
+                    DisplayMode::ColoredUnicode => "\x1b[91m♦\x1b[0m",
                     DisplayMode::ColoredEmoji => "♦️",
                 },
                 Suit::Clubs => match self.mode {
                     DisplayMode::Ascii => "c",
-                    DisplayMode::Unicode => "♣",
+                    DisplayMode::Unicode | DisplayMode::ColoredUnicode => "♣",
                     DisplayMode::ColoredEmoji => "♣️",
                 },
             };
@@ -189,8 +198,9 @@ pub mod display {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
             write!(
                 f,
-                "{}{}",
+                "{}{}{}",
                 self.card.value(),
+                if self.mode.is_unicode() { " " } else { "" },
                 self.card.suit().display(self.mode)
             )
         }

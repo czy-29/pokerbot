@@ -23,7 +23,20 @@ fn main() {
             _ => (),
         }
 
-        print!("{} ", card.display(DisplayMode::Unicode));
+        print!("{}  ", card.display(DisplayMode::ColoredUnicode));
+    }
+
+    deck.shuffle();
+    println!();
+
+    for (i, card) in deck.deal().enumerate() {
+        match i % 5 {
+            0 => println!(),
+            3 | 4 => print!(" "),
+            _ => (),
+        }
+
+        print!("{}  ", card.display(DisplayMode::Unicode));
     }
 
     deck.shuffle();
