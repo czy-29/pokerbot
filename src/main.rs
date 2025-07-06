@@ -1,6 +1,12 @@
 use pokerbot::gameplay::{Deck, DisplayMode};
+use std::io::Write;
 
 fn main() {
+    // init:
+    // todo: windows enable ANSI when `ColoredUnicode || (ColoredEmoji && white)`
+    // Only when `ColoredEmoji && white`
+    print!("\x1b[107m\x1b[0J\x1b[90m");
+
     let mut deck = Deck::default().shuffled();
 
     for (i, card) in deck.deal().enumerate() {
@@ -55,4 +61,15 @@ fn main() {
     }
 
     println!();
+
+    println!();
+    print!("input: ");
+    std::io::stdout().flush().unwrap();
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    println!("output: {}", input.trim());
+
+    // drop:
+    // Only when `ColoredEmoji && white`
+    print!("\x1b[0m\x1b[0J");
 }
