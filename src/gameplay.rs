@@ -69,7 +69,7 @@ impl FromStr for Value {
 pub enum DisplayMode {
     Ascii,
     Unicode,
-    Emoji,
+    ColoredEmoji,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -157,22 +157,22 @@ pub mod display {
                 Suit::Spades => match self.mode {
                     DisplayMode::Ascii => "s",
                     DisplayMode::Unicode => "♠",
-                    DisplayMode::Emoji => "♠️",
+                    DisplayMode::ColoredEmoji => "♠️",
                 },
                 Suit::Hearts => match self.mode {
                     DisplayMode::Ascii => "h",
                     DisplayMode::Unicode => "♥",
-                    DisplayMode::Emoji => "♥️",
+                    DisplayMode::ColoredEmoji => "♥️",
                 },
                 Suit::Diamonds => match self.mode {
                     DisplayMode::Ascii => "d",
                     DisplayMode::Unicode => "♦",
-                    DisplayMode::Emoji => "♦️",
+                    DisplayMode::ColoredEmoji => "♦️",
                 },
                 Suit::Clubs => match self.mode {
                     DisplayMode::Ascii => "c",
                     DisplayMode::Unicode => "♣",
-                    DisplayMode::Emoji => "♣️",
+                    DisplayMode::ColoredEmoji => "♣️",
                 },
             };
             write!(f, "{}", str)

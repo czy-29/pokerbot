@@ -10,7 +10,7 @@ fn main() {
             _ => (),
         }
 
-        print!("{}  ", card.display(DisplayMode::Emoji));
+        print!("{}  ", card.display(DisplayMode::ColoredEmoji));
     }
 
     deck.shuffle();
