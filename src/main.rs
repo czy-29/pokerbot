@@ -13,6 +13,7 @@ fn main() {
         print!("{}  ", card.display(DisplayMode::ColoredEmoji));
     }
 
+    /*
     deck.shuffle();
     println!();
 
@@ -25,6 +26,7 @@ fn main() {
 
         print!("{}  ", card.display(DisplayMode::ColoredUnicode));
     }
+    */
 
     deck.shuffle();
     println!();
