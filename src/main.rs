@@ -1,10 +1,15 @@
 use pokerbot::gameplay::{Deck, DisplayMode};
 
 fn main() {
+    // todo: DisplayConfig
+
     // init:
     // todo: windows enable ANSI when `ColoredUnicode || (ColoredEmoji && white)`
     // Only when `ColoredEmoji && white`
     // print!("\x1b[107m\x1b[0J\x1b[30m");
+
+    // todo: Hole/Flop/Board
+    // note: 几种Display模式下的Hole/Flop/Board的间隔是不一样的
 
     let mut deck = Deck::default().shuffled();
 
