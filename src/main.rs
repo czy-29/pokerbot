@@ -5,7 +5,7 @@ fn main() {
     // init:
     // todo: windows enable ANSI when `ColoredUnicode || (ColoredEmoji && white)`
     // Only when `ColoredEmoji && white`
-    print!("\x1b[47m\x1b[0J\x1b[30m");
+    print!("\x1b[107m\x1b[0J\x1b[30m");
 
     let mut deck = Deck::default().shuffled();
 
