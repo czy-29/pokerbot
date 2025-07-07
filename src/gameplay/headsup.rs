@@ -38,6 +38,7 @@ pub enum Visibility {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
+    NewHand(bool), // bool is for the button
     ActionTurn(bool),
     GameOver(GameOver),
     GameAbort,
