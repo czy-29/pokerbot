@@ -79,6 +79,7 @@ impl PlayerEvent {
 
 #[derive(Debug)]
 pub struct Player {
+    game_type: GameType,
     visibility: Visibility,
     game_over: Option<GameOver>,
     game_abort: bool,
@@ -86,8 +87,13 @@ pub struct Player {
 }
 
 impl Player {
-    fn new(visibility: Visibility, recv: UnboundedReceiver<PlayerEvent>) -> Self {
+    fn new(
+        game_type: GameType,
+        visibility: Visibility,
+        recv: UnboundedReceiver<PlayerEvent>,
+    ) -> Self {
         Self {
+            game_type,
             visibility,
             game_over: None,
             game_abort: false,
@@ -182,6 +188,7 @@ impl PlayerSender {
 
 #[derive(Debug)]
 pub struct Game {
+    game_type: GameType,
     game_over: Option<GameOver>,
     player0: PlayerSender,
     player1: PlayerSender,
@@ -189,12 +196,13 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(_game_type: GameType) -> (Self, Player, Player) {
+    pub fn new(game_type: GameType) -> (Self, Player, Player) {
         let p0_vis = Visibility::Player0;
         let p1_vis = Visibility::Player1;
         let (p0_send, p0_recv) = unbounded_channel();
         let (p1_send, p1_recv) = unbounded_channel();
         let game = Self {
+            game_type,
             game_over: None,
             player0: PlayerSender {
                 visibility: p0_vis,
@@ -206,8 +214,8 @@ impl Game {
             },
             observer: None,
         };
-        let player0 = Player::new(p0_vis, p0_recv);
-        let player1 = Player::new(p1_vis, p1_recv);
+        let player0 = Player::new(game_type, p0_vis, p0_recv);
+        let player1 = Player::new(game_type, p1_vis, p1_recv);
         (game, player0, player1)
     }
 
@@ -218,7 +226,7 @@ impl Game {
 
         let (send, recv) = unbounded_channel();
         self.observer = Some(PlayerSender { visibility, send });
-        Some(Observer(Player::new(visibility, recv)))
+        Some(Observer(Player::new(self.game_type, visibility, recv)))
     }
 
     pub fn is_over(&self) -> bool {
