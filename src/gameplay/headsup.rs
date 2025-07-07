@@ -41,6 +41,7 @@ pub enum Visibility {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
     NewHand { button: bool, blind_increased: bool },
+    // DealHoles(Option<Hole>, Option<Hole>),
     ActionTurn(bool),
     GameOver(GameOver),
     GameAbort,
@@ -226,6 +227,8 @@ impl Deck {
         self.0.into_iter()
     }
 }
+
+// todo: Dealer
 
 #[derive(Debug)]
 pub struct Game {
