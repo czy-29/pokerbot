@@ -271,6 +271,16 @@ impl Game {
         turn.turn(bounds).await.ok_or(player0)
     }
 
+    // infallible game over
+    fn send_game_over(&mut self, game_over: GameOver) -> Option<GameOver> {
+        self.game_over = Some(game_over);
+        let event = ObservableEvent::GameOver(game_over);
+        self.send_ob(event);
+        self.player0.send(event);
+        self.player1.send(event);
+        Some(game_over)
+    }
+
     pub async fn run_hand(&mut self) -> Option<GameOver> {
         if self.is_over() {
             return self.game_over();
