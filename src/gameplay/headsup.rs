@@ -38,22 +38,9 @@ pub enum Visibility {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
-    HeroTurn,
-    VillainTurn,
-    Player0Turn,
-    Player1Turn,
+    ActionTurn(bool),
     GameOver(GameOver),
     GameAbort,
-}
-
-impl ObservableEvent {
-    fn turn(player0: bool) -> Self {
-        if player0 {
-            Self::Player0Turn
-        } else {
-            Self::Player1Turn
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -177,7 +164,7 @@ struct PlayerSender {
 
 impl PlayerSender {
     fn send(&self, event: ObservableEvent) -> bool {
-        // todo: transform event
+        // todo: transform event (God |-> FirstPerson)
         self.send.send(PlayerEvent::Observable(event)).is_ok()
     }
 
@@ -260,7 +247,7 @@ impl Game {
     }
 
     async fn player_action(&mut self, player0: bool, bounds: ()) -> Result<ObservableEvent, bool> {
-        let ob_event = ObservableEvent::turn(player0);
+        let ob_event = ObservableEvent::ActionTurn(player0);
         self.send_ob(ob_event);
         let send = if player0 {
             &self.player1
