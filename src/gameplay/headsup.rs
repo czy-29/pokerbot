@@ -181,6 +181,7 @@ pub struct Game {
     player0: PlayerSender,
     player1: PlayerSender,
     observer: Option<PlayerSender>,
+    button: bool,
 }
 
 impl Game {
@@ -201,6 +202,7 @@ impl Game {
                 send: p1_send,
             },
             observer: None,
+            button: rand::random(),
         };
         let player0 = Player::new(game_type, p0_vis, p0_recv);
         let player1 = Player::new(game_type, p1_vis, p1_recv);
@@ -286,7 +288,9 @@ impl Game {
             return self.game_over();
         }
 
-        let _button = true;
+        // switch button position
+        self.button = !self.button;
+
         let _big_blind = 500;
         let _stack0 = 150000;
         let _stack1 = 150000;
