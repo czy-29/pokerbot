@@ -109,7 +109,7 @@ impl FromStr for Suit {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct Card(pub(crate) Value, pub(crate) Suit);
+pub struct Card(Value, Suit);
 
 impl Default for Card {
     fn default() -> Self {
