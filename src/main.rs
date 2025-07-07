@@ -1,4 +1,4 @@
-use pokerbot::gameplay::{Deck, DisplayMode};
+use pokerbot::gameplay::{DisplayMode, headsup::Deck};
 
 fn main() {
     // todo: DisplayConfig

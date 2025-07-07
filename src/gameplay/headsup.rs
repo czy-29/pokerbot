@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use super::*;
+use rand::prelude::*;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -171,6 +173,57 @@ impl PlayerSender {
 
     async fn turn(&self, _bounds: ()) -> Option<ObservableEvent> {
         todo!()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct Deck([Card; 52]);
+
+impl Default for Deck {
+    fn default() -> Self {
+        let mut cards = [Default::default(); 52];
+        let values = [
+            Value::Deuce,
+            Value::Trey,
+            Value::Four,
+            Value::Five,
+            Value::Six,
+            Value::Seven,
+            Value::Eight,
+            Value::Nine,
+            Value::Ten,
+            Value::Jack,
+            Value::Queen,
+            Value::King,
+            Value::Ace,
+        ];
+        let suits = [Suit::Spades, Suit::Hearts, Suit::Diamonds, Suit::Clubs];
+
+        for (i, &value) in values.iter().enumerate() {
+            for (j, &suit) in suits.iter().enumerate() {
+                cards[i * 4 + j] = Card(value, suit);
+            }
+        }
+
+        Self(cards)
+    }
+}
+
+use std::array::IntoIter;
+
+impl Deck {
+    pub fn shuffle(&mut self) {
+        self.0.shuffle(&mut rand::rng());
+    }
+
+    pub fn shuffled(&self) -> Self {
+        let mut deck = *self;
+        deck.shuffle();
+        deck
+    }
+
+    pub fn deal(&self) -> IntoIter<Card, 52> {
+        self.0.into_iter()
     }
 }
 

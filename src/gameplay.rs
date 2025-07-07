@@ -1,4 +1,3 @@
-use rand::prelude::*;
 use std::{
     fmt::{self, Display, Formatter},
     str::FromStr,
@@ -208,54 +207,3 @@ pub mod display {
 }
 
 pub mod headsup;
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct Deck([Card; 52]);
-
-impl Default for Deck {
-    fn default() -> Self {
-        let mut cards = [Default::default(); 52];
-        let values = [
-            Value::Deuce,
-            Value::Trey,
-            Value::Four,
-            Value::Five,
-            Value::Six,
-            Value::Seven,
-            Value::Eight,
-            Value::Nine,
-            Value::Ten,
-            Value::Jack,
-            Value::Queen,
-            Value::King,
-            Value::Ace,
-        ];
-        let suits = [Suit::Spades, Suit::Hearts, Suit::Diamonds, Suit::Clubs];
-
-        for (i, &value) in values.iter().enumerate() {
-            for (j, &suit) in suits.iter().enumerate() {
-                cards[i * 4 + j] = Card(value, suit);
-            }
-        }
-
-        Self(cards)
-    }
-}
-
-use std::array::IntoIter;
-
-impl Deck {
-    pub fn shuffle(&mut self) {
-        self.0.shuffle(&mut rand::rng());
-    }
-
-    pub fn shuffled(&self) -> Self {
-        let mut deck = *self;
-        deck.shuffle();
-        deck
-    }
-
-    pub fn deal(&self) -> IntoIter<Card, 52> {
-        self.0.into_iter()
-    }
-}
