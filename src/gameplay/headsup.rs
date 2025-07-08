@@ -226,6 +226,10 @@ impl Deck {
     pub fn deal(&self) -> IntoIter<Card, 52> {
         self.0.into_iter()
     }
+    
+    pub fn display(self, mode: DisplayMode) -> DeckDisplay {
+        DeckDisplay { deck: self, mode }
+    }
 }
 
 // todo: Dealer

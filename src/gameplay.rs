@@ -225,6 +225,7 @@ pub type Flop = CardsCombined<3>;
 
 pub mod display {
     use super::*;
+    use headsup::Deck;
 
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct SuitDisplay {
@@ -295,6 +296,33 @@ pub mod display {
             };
             for (i, card) in self.cards.iter().enumerate() {
                 if i > 0 {
+                    write!(f, "{}", delimiter)?;
+                }
+                write!(f, "{}", card.display(self.mode))?;
+            }
+            Ok(())
+        }
+    }
+    
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+    pub struct DeckDisplay {
+        pub(super) deck: Deck,
+        pub(super) mode: DisplayMode,
+    }
+    
+    impl Display for DeckDisplay {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            let cards_per_row = 13;
+            let delimiter = if self.mode == DisplayMode::Ascii {
+                " "
+            } else {
+                "  "
+            };
+            
+            for (i, card) in self.deck.deal().enumerate() {
+                if i > 0 && i % cards_per_row == 0 {
+                    writeln!(f)?;
+                } else if i > 0 {
                     write!(f, "{}", delimiter)?;
                 }
                 write!(f, "{}", card.display(self.mode))?;

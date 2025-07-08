@@ -16,6 +16,13 @@ fn main() {
 
     let mut deck = Deck::default().shuffled();
 
+    // Display entire deck using the new display trait
+    println!("Deck display (ColoredEmoji):");
+    println!("{}", deck.display(DisplayMode::ColoredEmoji));
+    println!();
+
+    // Original card-by-card display
+    println!("Card-by-card display (ColoredEmoji):");
     for (i, card) in deck.deal().enumerate() {
         match i % 5 {
             0 if i != 0 => println!(),
@@ -27,8 +34,13 @@ fn main() {
     }
 
     deck.shuffle();
+    println!("\n");
+
+    println!("Deck display (ColoredUnicode):");
+    println!("{}", deck.display(DisplayMode::ColoredUnicode));
     println!();
 
+    println!("Card-by-card display (ColoredUnicode):");
     for (i, card) in deck.deal().enumerate() {
         match i % 5 {
             0 => println!(),
@@ -40,8 +52,13 @@ fn main() {
     }
 
     deck.shuffle();
+    println!("\n");
+
+    println!("Deck display (Unicode):");
+    println!("{}", deck.display(DisplayMode::Unicode));
     println!();
 
+    println!("Card-by-card display (Unicode):");
     for (i, card) in deck.deal().enumerate() {
         match i % 5 {
             0 => println!(),
@@ -53,8 +70,13 @@ fn main() {
     }
 
     deck.shuffle();
+    println!("\n");
+
+    println!("Deck display (Ascii):");
+    println!("{}", deck.display(DisplayMode::Ascii));
     println!();
 
+    println!("Card-by-card display (Ascii):");
     for (i, card) in deck.deal().enumerate() {
         match i % 5 {
             0 => println!(),
