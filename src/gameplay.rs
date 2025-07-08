@@ -304,4 +304,96 @@ pub mod display {
     }
 }
 
+impl<const N: usize> FromStr for CardsCombined<N> {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Trim the input string
+        let s = s.trim();
+        
+        // Split the input string by whitespace
+        let card_strs: Vec<&str> = s.split_whitespace().collect();
+        
+        // If we have exactly one part and its length is N*2, try to parse as concatenated cards
+        if card_strs.len() == 1 && card_strs[0].len() == N * 2 {
+            let s = card_strs[0];
+            
+            // Try to parse as concatenated cards
+            let mut cards = [Card::default(); N];
+            for i in 0..N {
+                let start = i * 2;
+                let end = start + 2;
+                if end <= s.len() {
+                    let card_str = &s[start..end];
+                    cards[i] = Card::from_str(card_str)?;
+                } else {
+                    return Err(());
+                }
+            }
+            return CardsCombined::new(cards).ok_or(());
+        }
+        
+        // Check if the number of cards matches N
+        if card_strs.len() != N {
+            return Err(());
+        }
+        
+        // Parse each card string
+        let mut cards = [Card::default(); N];
+        for (i, card_str) in card_strs.iter().enumerate() {
+            cards[i] = Card::from_str(card_str)?;
+        }
+        
+        // Create a new CardsCombined, checking for duplicates
+        CardsCombined::new(cards).ok_or(())
+    }
+}
+
 pub mod headsup;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_cards_combined_from_str() {
+        // Test valid inputs with different spacing
+        let hole1: Result<Hole, _> = "As Kc".parse();
+        assert!(hole1.is_ok());
+        
+        let hole2: Result<Hole, _> = "As  Kc".parse();
+        assert!(hole2.is_ok());
+        
+        let hole3: Result<Hole, _> = "AsKc".parse();
+        assert!(hole3.is_ok());
+        
+        let hole4: Result<Hole, _> = " As Kc ".parse();
+        assert!(hole4.is_ok());
+        
+        // Test invalid inputs
+        
+        // Wrong number of cards
+        let invalid1: Result<Hole, _> = "As".parse();
+        assert!(invalid1.is_err());
+        
+        let invalid2: Result<Hole, _> = "As Kc Qd".parse();
+        assert!(invalid2.is_err());
+        
+        // Invalid card format
+        let invalid3: Result<Hole, _> = "A s K c".parse();
+        assert!(invalid3.is_err());
+        
+        // Duplicate cards
+        let invalid4: Result<Hole, _> = "As As".parse();
+        assert!(invalid4.is_err());
+        
+        // Test with different N values
+        let flop: Result<Flop, _> = "As Kc Qd".parse();
+        assert!(flop.is_ok());
+        
+        // Custom size
+        type FourCards = CardsCombined<4>;
+        let four_cards: Result<FourCards, _> = "As Kc Qd Jh".parse();
+        assert!(four_cards.is_ok());
+    }
+}
