@@ -24,6 +24,7 @@ rust-version = "1.85.0"
 all-features = true
 
 [dependencies]
+est = { version = "0.10.0", features = ["slice"] }
 rand = "0.9.1"
 tokio = { version = "1.46.1", features = ["macros", "rt-multi-thread", "sync"] }
 
