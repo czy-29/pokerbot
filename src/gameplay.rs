@@ -214,6 +214,10 @@ impl<const N: usize> CardsCombined<N> {
             Some(Self(cards))
         }
     }
+
+    pub fn display(self, mode: DisplayMode) -> CardsDisplay<N> {
+        CardsDisplay { cards: self, mode }
+    }
 }
 
 pub type Hole = CardsCombined<2>;
@@ -273,6 +277,29 @@ pub mod display {
                 if self.mode.is_unicode() { " " } else { "" },
                 self.card.suit().display(self.mode)
             )
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+    pub struct CardsDisplay<const N: usize> {
+        pub(super) cards: CardsCombined<N>,
+        pub(super) mode: DisplayMode,
+    }
+
+    impl<const N: usize> Display for CardsDisplay<N> {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            let delimiter = if self.mode == DisplayMode::Ascii {
+                " "
+            } else {
+                "  "
+            };
+            for (i, card) in self.cards.iter().enumerate() {
+                if i > 0 {
+                    write!(f, "{}", delimiter)?;
+                }
+                write!(f, "{}", card.display(self.mode))?;
+            }
+            Ok(())
         }
     }
 }
