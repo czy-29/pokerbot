@@ -1,3 +1,4 @@
+use est::slice::SliceExt;
 use std::{
     fmt::{self, Display, Formatter},
     ops::Deref,
@@ -183,46 +184,40 @@ impl FromStr for Card {
 }
 
 #[derive(Debug, Eq, Clone, Copy, Hash)]
-pub struct Hole([Card; 2]);
+pub struct CardsCombined<const N: usize>([Card; N]);
 
-impl Default for Hole {
-    fn default() -> Self {
-        Self([
-            Card(Value::Ace, Suit::Spades),
-            Card(Value::Ace, Suit::Hearts),
-        ])
-    }
-}
-
-impl PartialEq for Hole {
+impl<const N: usize> PartialEq for CardsCombined<N> {
     fn eq(&self, other: &Self) -> bool {
         self.sorted() == other.sorted()
     }
 }
 
-impl Deref for Hole {
-    type Target = [Card; 2];
+impl<const N: usize> Deref for CardsCombined<N> {
+    type Target = [Card; N];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl Hole {
-    fn sorted(&self) -> [Card; 2] {
+impl<const N: usize> CardsCombined<N> {
+    fn sorted(&self) -> [Card; N] {
         let mut sorted = self.0;
         sorted.sort_by(|a, b| a.as_u8().cmp(&b.as_u8()));
         sorted
     }
 
-    pub fn new(cards: [Card; 2]) -> Option<Self> {
-        if cards[0] == cards[1] {
-            None // Cannot have two identical cards in a hole
+    pub fn new(cards: [Card; N]) -> Option<Self> {
+        if cards.has_dup() {
+            None // Cannot have duplicate cards
         } else {
             Some(Self(cards))
         }
     }
 }
+
+pub type Hole = CardsCombined<2>;
+pub type Flop = CardsCombined<3>;
 
 pub mod display {
     use super::*;
