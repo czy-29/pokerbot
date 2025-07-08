@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Display, Formatter},
+    ops::Deref,
     str::FromStr,
 };
 
@@ -64,6 +65,26 @@ impl FromStr for Value {
     }
 }
 
+impl Value {
+    fn as_u8(self) -> u8 {
+        match self {
+            Self::Deuce => 0,
+            Self::Trey => 1,
+            Self::Four => 2,
+            Self::Five => 3,
+            Self::Six => 4,
+            Self::Seven => 5,
+            Self::Eight => 6,
+            Self::Nine => 7,
+            Self::Ten => 8,
+            Self::Jack => 9,
+            Self::Queen => 10,
+            Self::King => 11,
+            Self::Ace => 12,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum DisplayMode {
     Ascii,
@@ -91,6 +112,15 @@ use display::*;
 impl Suit {
     pub fn display(self, mode: DisplayMode) -> SuitDisplay {
         SuitDisplay { suit: self, mode }
+    }
+
+    fn as_u8(self) -> u8 {
+        match self {
+            Self::Spades => 0,
+            Self::Hearts => 1,
+            Self::Diamonds => 2,
+            Self::Clubs => 3,
+        }
     }
 }
 
@@ -133,6 +163,10 @@ impl Card {
     pub fn display(self, mode: DisplayMode) -> CardDisplay {
         CardDisplay { card: self, mode }
     }
+
+    fn as_u8(self) -> u8 {
+        (self.value().as_u8() << 2) | self.suit().as_u8()
+    }
 }
 
 impl FromStr for Card {
@@ -145,6 +179,48 @@ impl FromStr for Card {
         let value = Value::from_str(&s[0..1])?;
         let suit = Suit::from_str(&s[1..2])?;
         Ok(Self(value, suit))
+    }
+}
+
+#[derive(Debug, Eq, Clone, Copy, Hash)]
+pub struct Hole([Card; 2]);
+
+impl Default for Hole {
+    fn default() -> Self {
+        Self([
+            Card(Value::Ace, Suit::Spades),
+            Card(Value::Ace, Suit::Hearts),
+        ])
+    }
+}
+
+impl PartialEq for Hole {
+    fn eq(&self, other: &Self) -> bool {
+        self.sorted() == other.sorted()
+    }
+}
+
+impl Deref for Hole {
+    type Target = [Card; 2];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Hole {
+    fn sorted(&self) -> [Card; 2] {
+        let mut sorted = self.0;
+        sorted.sort_by(|a, b| a.as_u8().cmp(&b.as_u8()));
+        sorted
+    }
+
+    pub fn new(cards: [Card; 2]) -> Option<Self> {
+        if cards[0] == cards[1] {
+            None // Cannot have two identical cards in a hole
+        } else {
+            Some(Self(cards))
+        }
     }
 }
 
