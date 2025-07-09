@@ -201,6 +201,11 @@ impl<const N: usize> Deref for CardsCombined<N> {
 }
 
 impl<const N: usize> CardsCombined<N> {
+    // Should check the length of the slice before calling this
+    fn from_slice(cards: &[Card]) -> Self {
+        Self(cards.try_into().unwrap())
+    }
+
     fn sorted(&self) -> [Card; N] {
         let mut sorted = self.0;
         sorted.sort_by(|a, b| a.as_u8().cmp(&b.as_u8()));
@@ -245,7 +250,7 @@ impl<'a> CardsParser<'a> {
         }
     }
 
-    fn _eat_card(&mut self) -> ParserResult<Card> {
+    fn eat_card(&mut self) -> ParserResult<Card> {
         match self.card_eaten() {
             ParserResult::OkSome((card, next)) => {
                 self.0 = next.0;
@@ -299,6 +304,158 @@ impl<const N: usize> FromStr for CardsCombined<N> {
 
 pub type Hole = CardsCombined<2>;
 pub type Flop = CardsCombined<3>;
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct Board(BoardCards);
+
+impl Deref for Board {
+    type Target = BoardCards;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Board {
+    pub fn from_slice(cards: &[Card]) -> Option<Self> {
+        if cards.is_empty() {
+            return Some(Default::default());
+        }
+
+        if !(3..=5).contains(&cards.len()) {
+            return None; // Invalid number of cards for a board
+        }
+
+        if cards.has_dup() {
+            return None; // Cannot have duplicate cards
+        }
+
+        let flop = Flop::from_slice(&cards[0..3]);
+        match cards.len() {
+            3 => Some(Self(BoardCards::Flop(flop))),
+            4 => Some(Self(BoardCards::Turn {
+                flop,
+                turn: cards[3],
+            })),
+            5 => Some(Self(BoardCards::River {
+                flop,
+                turn: cards[3],
+                river: cards[4],
+            })),
+            _ => unreachable!(), // Since we checked the length above
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<Card> {
+        match self.0 {
+            BoardCards::Preflop => vec![],
+            BoardCards::Flop(flop) => flop.into_iter().collect(),
+            BoardCards::Turn { flop, turn } => {
+                let mut cards = flop.into_iter().collect::<Vec<_>>();
+                cards.push(turn);
+                cards
+            }
+            BoardCards::River { flop, turn, river } => {
+                let mut cards = flop.into_iter().collect::<Vec<_>>();
+                cards.push(turn);
+                cards.push(river);
+                cards
+            }
+        }
+    }
+
+    pub fn flop(flop: Flop) -> Self {
+        Self(BoardCards::Flop(flop))
+    }
+
+    pub fn turn(&self, turn: Card) -> Option<Self> {
+        if let BoardCards::Flop(flop) = self.0 {
+            if flop.contains(&turn) {
+                None // Cannot have duplicate cards
+            } else {
+                Some(Self(BoardCards::Turn { flop, turn }))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn river(&self, river: Card) -> Option<Self> {
+        if let BoardCards::Turn { flop, turn } = self.0 {
+            if flop.contains(&river) || turn == river {
+                None // Cannot have duplicate cards
+            } else {
+                Some(Self(BoardCards::River { flop, turn, river }))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn display(self, mode: DisplayMode) -> BoardDisplay {
+        BoardDisplay { board: self, mode }
+    }
+}
+
+impl FromStr for Board {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.is_ascii() {
+            return Err(());
+        }
+
+        let s = s.trim();
+        if s == "x" {
+            return Ok(Self::default());
+        }
+
+        let mut parser = CardsParser(s);
+        match parser.eat_cards::<3>() {
+            Some(flop) => {
+                let board = Self::flop(flop);
+                match parser.eat_card() {
+                    ParserResult::OkSome(turn) => match board.turn(turn) {
+                        Some(board) => match parser.eat_card() {
+                            ParserResult::OkSome(river) => match board.river(river) {
+                                Some(board) => {
+                                    if parser.0.is_empty() {
+                                        Ok(board) // River board
+                                    } else {
+                                        Err(())
+                                    }
+                                }
+                                None => Err(()),
+                            },
+                            ParserResult::None => Ok(board), // Turn board
+                            ParserResult::Err => Err(()),
+                        },
+                        None => Err(()),
+                    },
+                    ParserResult::None => Ok(board), // Flop board
+                    ParserResult::Err => Err(()),
+                }
+            }
+            None => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum BoardCards {
+    #[default]
+    Preflop,
+    Flop(Flop),
+    Turn {
+        flop: Flop,
+        turn: Card,
+    },
+    River {
+        flop: Flop,
+        turn: Card,
+        river: Card,
+    },
+}
 
 pub mod display {
     use super::*;
@@ -377,6 +534,46 @@ pub mod display {
                 write!(f, "{}", card.display(self.mode))?;
             }
             Ok(())
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+    pub struct BoardDisplay {
+        pub(super) board: Board,
+        pub(super) mode: DisplayMode,
+    }
+
+    impl Display for BoardDisplay {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            let delimiter = match self.mode {
+                DisplayMode::Ascii => "  ",
+                DisplayMode::Unicode | DisplayMode::ColoredUnicode => "   ",
+                DisplayMode::ColoredEmoji => "    ",
+            };
+            match self.board.0 {
+                BoardCards::Preflop => write!(f, "x"),
+                BoardCards::Flop(flop) => write!(f, "{}", flop.display(self.mode)),
+                BoardCards::Turn { flop, turn } => {
+                    write!(
+                        f,
+                        "{}{}{}",
+                        flop.display(self.mode),
+                        delimiter,
+                        turn.display(self.mode)
+                    )
+                }
+                BoardCards::River { flop, turn, river } => {
+                    write!(
+                        f,
+                        "{}{}{}{}{}",
+                        flop.display(self.mode),
+                        delimiter,
+                        turn.display(self.mode),
+                        delimiter,
+                        river.display(self.mode),
+                    )
+                }
+            }
         }
     }
 }
