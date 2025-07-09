@@ -174,7 +174,7 @@ impl FromStr for Card {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != 2 {
+        if s.len() != 2 || !s.is_ascii() {
             return Err(());
         }
         let value = Value::from_str(&s[0..1])?;
@@ -217,6 +217,83 @@ impl<const N: usize> CardsCombined<N> {
 
     pub fn display(self, mode: DisplayMode) -> CardsDisplay<N> {
         CardsDisplay { cards: self, mode }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+enum ParserResult<T> {
+    Err,
+    None,
+    OkSome(T),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+struct CardsParser<'a>(&'a str);
+
+impl<'a> CardsParser<'a> {
+    fn card_eaten(&self) -> ParserResult<(Card, Self)> {
+        let s = self.0.trim();
+        if s.is_empty() {
+            return ParserResult::None;
+        }
+        if s.len() == 1 {
+            return ParserResult::Err;
+        }
+        match Card::from_str(&s[0..2]) {
+            Ok(card) => ParserResult::OkSome((card, Self(&s[2..]))),
+            Err(_) => ParserResult::Err,
+        }
+    }
+
+    fn _eat_card(&mut self) -> ParserResult<Card> {
+        match self.card_eaten() {
+            ParserResult::OkSome((card, next)) => {
+                self.0 = next.0;
+                ParserResult::OkSome(card)
+            }
+            ParserResult::None => ParserResult::None,
+            ParserResult::Err => ParserResult::Err,
+        }
+    }
+
+    fn eat_cards<const N: usize>(&mut self) -> Option<CardsCombined<N>> {
+        let mut cards = [Card::default(); N];
+        let mut parser = *self;
+        for i in 0..N {
+            match parser.card_eaten() {
+                ParserResult::OkSome((card, next)) => {
+                    cards[i] = card;
+                    parser = next;
+                }
+                _ => return None,
+            }
+        }
+        let cards = CardsCombined::new(cards);
+        if cards.is_some() {
+            self.0 = parser.0;
+        }
+        cards
+    }
+}
+
+impl<const N: usize> FromStr for CardsCombined<N> {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.is_ascii() {
+            return Err(());
+        }
+        let mut parser = CardsParser(s);
+        match parser.eat_cards::<N>() {
+            Some(cards) => {
+                if parser.0.is_empty() {
+                    Ok(cards)
+                } else {
+                    Err(())
+                }
+            }
+            None => Err(()),
+        }
     }
 }
 
