@@ -40,7 +40,7 @@ pub enum Visibility {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
-    // DealHoles(Option<Hole>, Option<Hole>),
+    DealHoles(Option<Hole>, Option<Hole>),
     ActionTurn(bool),
     GameOver(GameOver),
     GameAbort,
