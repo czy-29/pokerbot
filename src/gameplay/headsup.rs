@@ -211,8 +211,6 @@ impl Default for Deck {
     }
 }
 
-use std::array::IntoIter;
-
 impl Deck {
     pub fn shuffle(&mut self) {
         self.0.shuffle(&mut rand::rng());
@@ -224,14 +222,12 @@ impl Deck {
         deck
     }
 
-    pub fn deal(&self) -> IntoIter<Card, 52> {
-        self.0.into_iter()
-    }
-
     pub fn dealer(&self) -> Dealer {
         Dealer(self.0.into_iter())
     }
 }
+
+use std::array::IntoIter;
 
 // todo: make private
 #[derive(Debug, Clone)]
