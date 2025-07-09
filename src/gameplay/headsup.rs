@@ -40,7 +40,6 @@ pub enum Visibility {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
-    NewHand { button: bool, blind_increased: bool },
     // DealHoles(Option<Hole>, Option<Hole>),
     ActionTurn(bool),
     GameOver(GameOver),
@@ -72,6 +71,7 @@ impl PlayerEvent {
 pub struct Player {
     game_type: GameType,
     visibility: Visibility,
+    next_button: bool,
     game_over: Option<GameOver>,
     game_abort: bool,
     recv: UnboundedReceiver<PlayerEvent>,
@@ -81,11 +81,13 @@ impl Player {
     fn new(
         game_type: GameType,
         visibility: Visibility,
+        next_button: bool,
         recv: UnboundedReceiver<PlayerEvent>,
     ) -> Self {
         Self {
             game_type,
             visibility,
+            next_button,
             game_over: None,
             game_abort: false,
             recv,
@@ -254,7 +256,7 @@ pub struct Game {
     player0: PlayerSender,
     player1: PlayerSender,
     observer: Option<PlayerSender>,
-    button: bool,
+    next_button: bool,
 }
 
 impl Game {
@@ -263,6 +265,7 @@ impl Game {
         let p1_vis = Visibility::Player1;
         let (p0_send, p0_recv) = unbounded_channel();
         let (p1_send, p1_recv) = unbounded_channel();
+        let next_button = rand::random();
         let game = Self {
             game_type,
             game_over: None,
@@ -275,10 +278,10 @@ impl Game {
                 send: p1_send,
             },
             observer: None,
-            button: rand::random(),
+            next_button,
         };
-        let player0 = Player::new(game_type, p0_vis, p0_recv);
-        let player1 = Player::new(game_type, p1_vis, p1_recv);
+        let player0 = Player::new(game_type, p0_vis, next_button, p0_recv);
+        let player1 = Player::new(game_type, p1_vis, !next_button, p1_recv);
         (game, player0, player1)
     }
 
@@ -288,8 +291,18 @@ impl Game {
         }
 
         let (send, recv) = unbounded_channel();
+        let next_button = if visibility == Visibility::Player1 {
+            !self.next_button
+        } else {
+            self.next_button
+        };
         self.observer = Some(PlayerSender { visibility, send });
-        Some(Observer(Player::new(self.game_type, visibility, recv)))
+        Some(Observer(Player::new(
+            self.game_type,
+            visibility,
+            next_button,
+            recv,
+        )))
     }
 
     pub fn is_over(&self) -> bool {
@@ -361,14 +374,14 @@ impl Game {
             return self.game_over();
         }
 
-        // switch button position
-        self.button = !self.button;
-
         let _big_blind = 500;
         let _stack0 = 150000;
         let _stack1 = 150000;
         let _exit_abandon = false;
         let _deck = 0;
+
+        // switch button position
+        self.next_button = !self.next_button;
 
         None
     }
