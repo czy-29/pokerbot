@@ -374,6 +374,7 @@ impl Game {
             return self.game_over();
         }
 
+        let button = self.next_button;
         let _big_blind = 500;
         let _stack0 = 150000;
         let _stack1 = 150000;
@@ -381,7 +382,7 @@ impl Game {
         let _deck = 0;
 
         // switch button position
-        self.next_button = !self.next_button;
+        self.next_button = !button;
 
         None
     }
