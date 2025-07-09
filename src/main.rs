@@ -65,6 +65,6 @@ fn main() {
     println!();
 
     // drop:
-    // Only when `ColoredEmoji && !no_white`
+    // Only when `ColoredEmoji && !no_white`:
     // print!("\x1b[0m\x1b[0J");
 }
