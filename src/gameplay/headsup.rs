@@ -177,6 +177,7 @@ impl PlayerSender {
     }
 }
 
+// todo: make private
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Deck([Card; 52]);
 
@@ -226,9 +227,29 @@ impl Deck {
     pub fn deal(&self) -> IntoIter<Card, 52> {
         self.0.into_iter()
     }
+
+    pub fn dealer(&self) -> Dealer {
+        Dealer(self.0.into_iter())
+    }
 }
 
-// todo: Dealer
+// todo: make private
+#[derive(Debug, Clone)]
+pub struct Dealer(IntoIter<Card, 52>);
+
+impl Dealer {
+    pub fn deal_card(&mut self) -> Card {
+        self.0.next().unwrap()
+    }
+
+    pub fn deal_hole(&mut self) -> Hole {
+        Hole::unchecked([self.deal_card(), self.deal_card()])
+    }
+
+    pub fn deal_flop(&mut self) -> Flop {
+        Flop::unchecked([self.deal_card(), self.deal_card(), self.deal_card()])
+    }
+}
 
 #[derive(Debug)]
 pub struct Game {

@@ -206,6 +206,10 @@ impl<const N: usize> CardsCombined<N> {
         Self(cards.try_into().unwrap())
     }
 
+    fn unchecked(cards: [Card; N]) -> Self {
+        Self(cards)
+    }
+
     fn sorted(&self) -> [Card; N] {
         let mut sorted = self.0;
         sorted.sort_by(|a, b| a.as_u8().cmp(&b.as_u8()));
