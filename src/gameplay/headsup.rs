@@ -179,7 +179,7 @@ impl PlayerSender {
     }
 }
 
-// todo: make private
+// todo: make private, inside run_hand
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Deck([Card; 52]);
 
@@ -231,7 +231,7 @@ impl Deck {
 
 use std::array::IntoIter;
 
-// todo: make private
+// todo: make private, inside run_hand
 #[derive(Debug, Clone)]
 pub struct Dealer(IntoIter<Card, 52>);
 
