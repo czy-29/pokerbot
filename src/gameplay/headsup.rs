@@ -249,6 +249,8 @@ impl Dealer {
     }
 }
 
+// todo: HeadsUp: core gameplay, rules, logic, and state machine.
+
 #[derive(Debug)]
 pub struct Game {
     game_type: GameType,
