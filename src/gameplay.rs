@@ -168,6 +168,10 @@ impl Card {
     fn as_u8(self) -> u8 {
         (self.value().as_u8() << 2) | self.suit().as_u8()
     }
+
+    fn is_red(self) -> bool {
+        matches!(self.suit(), Suit::Hearts | Suit::Diamonds)
+    }
 }
 
 impl FromStr for Card {
@@ -480,14 +484,12 @@ pub mod display {
                 },
                 Suit::Hearts => match self.mode {
                     DisplayMode::Ascii => "h",
-                    DisplayMode::Unicode => "♥",
-                    DisplayMode::ColoredUnicode => "\x1b[91m♥\x1b[0m",
+                    DisplayMode::Unicode | DisplayMode::ColoredUnicode => "♥",
                     DisplayMode::ColoredEmoji => "♥️",
                 },
                 Suit::Diamonds => match self.mode {
                     DisplayMode::Ascii => "d",
-                    DisplayMode::Unicode => "♦",
-                    DisplayMode::ColoredUnicode => "\x1b[91m♦\x1b[0m",
+                    DisplayMode::Unicode | DisplayMode::ColoredUnicode => "♦",
                     DisplayMode::ColoredEmoji => "♦️",
                 },
                 Suit::Clubs => match self.mode {
@@ -510,11 +512,19 @@ pub mod display {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
             write!(
                 f,
-                "{}{}{}",
+                "{}{}{}{}{}",
+                if self.need_ansi() { "\x1b[91m" } else { "" },
                 self.card.value(),
                 if self.mode.is_unicode() { " " } else { "" },
-                self.card.suit().display(self.mode)
+                self.card.suit().display(self.mode),
+                if self.need_ansi() { "\x1b[0m" } else { "" },
             )
+        }
+    }
+
+    impl CardDisplay {
+        fn need_ansi(self) -> bool {
+            self.mode == DisplayMode::ColoredUnicode && self.card.is_red()
         }
     }
 
