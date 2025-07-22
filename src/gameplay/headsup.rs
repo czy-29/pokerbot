@@ -2,14 +2,16 @@
 
 use super::*;
 use rand::prelude::*;
+use std::{array, vec};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum CashBuyin {
     BB15,
     BB30,
     BB50,
     BB75,
+    #[default]
     BB100,
     BB150,
     BB200,
@@ -17,10 +19,11 @@ pub enum CashBuyin {
     BB300,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum SNGSpeed {
-    Fast,
     Turbo,
+    Medium,
+    #[default]
     Slow,
 }
 
@@ -28,6 +31,71 @@ pub enum SNGSpeed {
 pub enum GameType {
     Cash { buyin: CashBuyin, hands: u16 },
     SNG(SNGSpeed),
+}
+
+impl Default for GameType {
+    fn default() -> Self {
+        Self::SNG(Default::default())
+    }
+}
+
+impl GameType {
+    pub fn cash_default() -> Self {
+        Self::Cash {
+            buyin: CashBuyin::default(),
+            hands: 0,
+        }
+    }
+
+    fn is_sng(self) -> bool {
+        matches!(self, Self::SNG(_))
+    }
+
+    fn hands_limit(self) -> Option<u16> {
+        match self {
+            Self::Cash { hands, .. } => {
+                if hands == 0 {
+                    None
+                } else {
+                    Some(hands)
+                }
+            }
+            Self::SNG(_) => None,
+        }
+    }
+
+    fn init_stack(self) -> u32 {
+        match self {
+            Self::Cash { buyin, .. } => match buyin {
+                CashBuyin::BB15 => 7500,
+                CashBuyin::BB30 => 15000,
+                CashBuyin::BB50 => 25000,
+                CashBuyin::BB75 => 37500,
+                CashBuyin::BB100 => 50000,
+                CashBuyin::BB150 => 75000,
+                CashBuyin::BB200 => 100000,
+                CashBuyin::BB250 => 125000,
+                CashBuyin::BB300 => 150000,
+            },
+            Self::SNG(speed) => match speed {
+                SNGSpeed::Turbo => 3000,
+                SNGSpeed::Medium => 7500,
+                SNGSpeed::Slow => 15000,
+            },
+        }
+    }
+
+    fn blind_levels(self) -> vec::IntoIter<u16> {
+        match self {
+            Self::Cash { .. } => vec![500],
+            Self::SNG(speed) => match speed {
+                SNGSpeed::Turbo => vec![50, 100, 150, 200],
+                SNGSpeed::Medium => vec![50, 100, 150, 200, 300, 400, 500],
+                SNGSpeed::Slow => vec![50, 100, 150, 200, 300, 400, 500, 600, 800, 1000],
+            },
+        }
+        .into_iter()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -43,19 +111,12 @@ pub enum ObservableEvent {
     DealHoles(Option<Hole>, Option<Hole>),
     ActionTurn(bool),
     GameOver(GameOver),
-    GameAbort,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum PlayerEvent {
     Observable(ObservableEvent),
     HeroTurn,
-}
-
-impl PlayerEvent {
-    fn abort() -> Self {
-        Self::Observable(ObservableEvent::GameAbort)
-    }
 }
 
 impl PlayerEvent {
@@ -71,59 +132,41 @@ impl PlayerEvent {
 pub struct Player {
     game_type: GameType,
     visibility: Visibility,
-    next_button: bool,
-    game_over: Option<GameOver>,
-    game_abort: bool,
     recv: UnboundedReceiver<PlayerEvent>,
+    heads_up: HeadsUp,
 }
 
 impl Player {
     fn new(
         game_type: GameType,
         visibility: Visibility,
-        next_button: bool,
         recv: UnboundedReceiver<PlayerEvent>,
+        button: bool,
     ) -> Self {
         Self {
             game_type,
             visibility,
-            next_button,
-            game_over: None,
-            game_abort: false,
             recv,
+            heads_up: HeadsUp::new(game_type, button),
         }
-    }
-
-    pub fn is_abort(&self) -> bool {
-        self.game_abort
     }
 
     pub fn is_over(&self) -> bool {
-        self.game_over.is_some()
+        self.heads_up.is_over()
     }
 
     pub fn game_over(&self) -> Option<GameOver> {
-        self.game_over
+        self.heads_up.game_over()
     }
 
     pub async fn tick_event(&mut self) -> Option<PlayerEvent> {
-        if self.is_abort() || self.is_over() {
+        if self.is_over() {
             return None;
         }
 
-        let event = self.recv.recv().await.unwrap_or(PlayerEvent::abort());
+        let event = self.recv.recv().await.unwrap_or(self.heads_up.abort());
         if let PlayerEvent::Observable(event) = event {
-            match event {
-                ObservableEvent::GameAbort => {
-                    self.game_abort = true;
-                }
-                ObservableEvent::GameOver(game_over) => {
-                    self.game_over = Some(game_over);
-                }
-                _ => {
-                    // todo: restore history
-                }
-            }
+            self.heads_up.event(event);
         }
 
         Some(event)
@@ -134,10 +177,6 @@ impl Player {
 pub struct Observer(Player);
 
 impl Observer {
-    pub fn is_abort(&self) -> bool {
-        self.0.is_abort()
-    }
-
     pub fn is_over(&self) -> bool {
         self.0.is_over()
     }
@@ -158,8 +197,10 @@ impl Observer {
 pub enum GameOver {
     Defeated(bool),
     ExitAbandon(bool),
-    ExitCheckout(u32, u32),
+    ExitCheckout(bool, u32, u32),
+    AbortCheckout(u32, u32),
     HandsReached(u32, u32),
+    GameAbort,
 }
 
 #[derive(Debug)]
@@ -229,11 +270,9 @@ impl Deck {
     }
 }
 
-use std::array::IntoIter;
-
 // todo: make private, inside run_hand
 #[derive(Debug, Clone)]
-pub struct Dealer(IntoIter<Card, 52>);
+pub struct Dealer(array::IntoIter<Card, 52>);
 
 impl Dealer {
     pub fn deal_card(&mut self) -> Card {
@@ -250,15 +289,84 @@ impl Dealer {
 }
 
 // todo: HeadsUp: core gameplay, rules, logic, and state machine.
+#[derive(Debug, Clone)]
+struct HeadsUp {
+    game_over: Option<GameOver>,
+
+    // game info
+    is_sng: bool,
+    hands_limit: Option<u16>,
+    blind_levels: vec::IntoIter<u16>,
+
+    // current state
+    cur_blind: u16,
+    button: bool,
+    stacks: (u32, u32),
+    pot: u32,
+    cur_round: (u32, u32),
+    behinds: (u32, u32),
+}
+
+impl HeadsUp {
+    fn new(game_type: GameType, button: bool) -> Self {
+        let init_stack = game_type.init_stack();
+        let mut blind_levels = game_type.blind_levels();
+        let cur_blind = blind_levels.next().unwrap(); // always has one
+
+        Self {
+            game_over: None,
+            is_sng: game_type.is_sng(),
+            hands_limit: game_type.hands_limit(),
+            blind_levels,
+            cur_blind,
+            button,
+            stacks: (init_stack, init_stack),
+            pot: 0,
+            cur_round: (0, 0),
+            behinds: (0, 0),
+        }
+    }
+
+    fn is_over(&self) -> bool {
+        self.game_over.is_some()
+    }
+
+    fn game_over(&self) -> Option<GameOver> {
+        self.game_over
+    }
+
+    fn abort(&self) -> PlayerEvent {
+        PlayerEvent::Observable(ObservableEvent::GameOver(if self.is_sng {
+            GameOver::GameAbort
+        } else {
+            GameOver::AbortCheckout(self.stacks.0, self.stacks.1)
+        }))
+    }
+
+    fn set_game_over(&mut self, game_over: GameOver) {
+        self.game_over = Some(game_over);
+    }
+
+    fn event(&mut self, event: ObservableEvent) {
+        match event {
+            ObservableEvent::GameOver(game_over) => {
+                self.set_game_over(game_over);
+            }
+            _ => {
+                // todo: restore history
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Game {
     game_type: GameType,
-    game_over: Option<GameOver>,
+    init_button: bool,
     player0: PlayerSender,
     player1: PlayerSender,
     observer: Option<PlayerSender>,
-    next_button: bool,
+    heads_up: HeadsUp,
 }
 
 impl Game {
@@ -267,10 +375,10 @@ impl Game {
         let p1_vis = Visibility::Player1;
         let (p0_send, p0_recv) = unbounded_channel();
         let (p1_send, p1_recv) = unbounded_channel();
-        let next_button = rand::random();
+        let init_button = rand::random();
         let game = Self {
             game_type,
-            game_over: None,
+            init_button,
             player0: PlayerSender {
                 visibility: p0_vis,
                 send: p0_send,
@@ -280,10 +388,10 @@ impl Game {
                 send: p1_send,
             },
             observer: None,
-            next_button,
+            heads_up: HeadsUp::new(game_type, init_button),
         };
-        let player0 = Player::new(game_type, p0_vis, next_button, p0_recv);
-        let player1 = Player::new(game_type, p1_vis, !next_button, p1_recv);
+        let player0 = Player::new(game_type, p0_vis, p0_recv, init_button);
+        let player1 = Player::new(game_type, p1_vis, p1_recv, !init_button);
         (game, player0, player1)
     }
 
@@ -293,26 +401,26 @@ impl Game {
         }
 
         let (send, recv) = unbounded_channel();
-        let next_button = if visibility == Visibility::Player1 {
-            !self.next_button
+        let button = if visibility == Visibility::Player1 {
+            !self.init_button
         } else {
-            self.next_button
+            self.init_button
         };
         self.observer = Some(PlayerSender { visibility, send });
         Some(Observer(Player::new(
             self.game_type,
             visibility,
-            next_button,
             recv,
+            button,
         )))
     }
 
     pub fn is_over(&self) -> bool {
-        self.game_over.is_some()
+        self.heads_up.is_over()
     }
 
     pub fn game_over(&self) -> Option<GameOver> {
-        self.game_over
+        self.heads_up.game_over()
     }
 
     fn send_ob(&mut self, event: ObservableEvent) {
@@ -363,7 +471,7 @@ impl Game {
 
     // infallible game over
     fn send_game_over(&mut self, game_over: GameOver) -> Option<GameOver> {
-        self.game_over = Some(game_over);
+        self.heads_up.set_game_over(game_over);
         let event = ObservableEvent::GameOver(game_over);
         self.send_ob(event);
         self.player0.send(event);
@@ -376,7 +484,7 @@ impl Game {
             return self.game_over();
         }
 
-        let button = self.next_button;
+        // let button = self.next_button;
         let _big_blind = 500;
         let _stack0 = 150000;
         let _stack1 = 150000;
@@ -384,7 +492,7 @@ impl Game {
         let _deck = 0;
 
         // switch button position
-        self.next_button = !button;
+        // self.next_button = !button;
 
         None
     }
