@@ -108,7 +108,7 @@ pub enum Visibility {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
-    DealHoles(Option<Hole>, Option<Hole>),
+    DealHoles([Option<Hole>; 2]),
     ActionTurn(bool),
     GameOver(GameOver),
 }
@@ -197,9 +197,9 @@ impl Observer {
 pub enum GameOver {
     Defeated(bool),
     ExitAbandon(bool),
-    ExitCheckout(bool, u32, u32),
-    AbortCheckout(u32, u32),
-    HandsReached(u32, u32),
+    ExitCheckout(bool, [u32; 2]),
+    AbortCheckout([u32; 2]),
+    HandsReached([u32; 2]),
     GameAbort,
 }
 
@@ -301,10 +301,10 @@ struct HeadsUp {
     // current state
     cur_blind: u16,
     button: bool,
-    stacks: (u32, u32),
+    stacks: [u32; 2],
     pot: u32,
-    cur_round: (u32, u32),
-    behinds: (u32, u32),
+    cur_round: [u32; 2],
+    behinds: [u32; 2],
 }
 
 impl HeadsUp {
@@ -320,10 +320,10 @@ impl HeadsUp {
             blind_levels,
             cur_blind,
             button,
-            stacks: (init_stack, init_stack),
+            stacks: [init_stack, init_stack],
             pot: 0,
-            cur_round: (0, 0),
-            behinds: (0, 0),
+            cur_round: [0, 0],
+            behinds: [0, 0],
         }
     }
 
@@ -339,7 +339,7 @@ impl HeadsUp {
         PlayerEvent::Observable(ObservableEvent::GameOver(if self.is_sng {
             GameOver::GameAbort
         } else {
-            GameOver::AbortCheckout(self.stacks.0, self.stacks.1)
+            GameOver::AbortCheckout(self.stacks)
         }))
     }
 
@@ -363,36 +363,37 @@ impl HeadsUp {
 pub struct Game {
     game_type: GameType,
     init_button: bool,
-    player0: PlayerSender,
-    player1: PlayerSender,
+    players: [PlayerSender; 2],
     observer: Option<PlayerSender>,
     heads_up: HeadsUp,
 }
 
 impl Game {
-    pub fn new(game_type: GameType) -> (Self, Player, Player) {
-        let p0_vis = Visibility::Player0;
-        let p1_vis = Visibility::Player1;
-        let (p0_send, p0_recv) = unbounded_channel();
-        let (p1_send, p1_recv) = unbounded_channel();
+    pub fn new(game_type: GameType) -> (Self, [Player; 2]) {
+        let vis = [Visibility::Player0, Visibility::Player1];
+        let [(send0, recv0), (send1, recv1)] = [unbounded_channel(), unbounded_channel()];
         let init_button = rand::random();
         let game = Self {
             game_type,
             init_button,
-            player0: PlayerSender {
-                visibility: p0_vis,
-                send: p0_send,
-            },
-            player1: PlayerSender {
-                visibility: p1_vis,
-                send: p1_send,
-            },
+            players: [
+                PlayerSender {
+                    visibility: vis[0],
+                    send: send0,
+                },
+                PlayerSender {
+                    visibility: vis[1],
+                    send: send1,
+                },
+            ],
             observer: None,
             heads_up: HeadsUp::new(game_type, init_button),
         };
-        let player0 = Player::new(game_type, p0_vis, p0_recv, init_button);
-        let player1 = Player::new(game_type, p1_vis, p1_recv, !init_button);
-        (game, player0, player1)
+        let players = [
+            Player::new(game_type, vis[0], recv0, init_button),
+            Player::new(game_type, vis[1], recv1, !init_button),
+        ];
+        (game, players)
     }
 
     pub fn observer(&mut self, visibility: Visibility) -> Option<Observer> {
@@ -434,11 +435,11 @@ impl Game {
     fn dispatch_event(&mut self, event: ObservableEvent) -> Option<bool> {
         self.send_ob(event);
 
-        if !self.player0.send(event) {
+        if !self.players[0].send(event) {
             return Some(true);
         }
 
-        if !self.player1.send(event) {
+        if !self.players[1].send(event) {
             return Some(false);
         }
 
@@ -449,14 +450,14 @@ impl Game {
         let ob_event = ObservableEvent::ActionTurn(player0);
         self.send_ob(ob_event);
         let send = if player0 {
-            &self.player1
+            &self.players[1]
         } else {
-            &self.player0
+            &self.players[0]
         };
         let turn = if player0 {
-            &self.player0
+            &self.players[0]
         } else {
-            &self.player1
+            &self.players[1]
         };
 
         // Err(true) for player0 crashing,
@@ -474,8 +475,8 @@ impl Game {
         self.heads_up.set_game_over(game_over);
         let event = ObservableEvent::GameOver(game_over);
         self.send_ob(event);
-        self.player0.send(event);
-        self.player1.send(event);
+        self.players[0].send(event);
+        self.players[1].send(event);
         Some(game_over)
     }
 
