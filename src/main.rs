@@ -3,6 +3,7 @@ use pokerbot::gameplay::{Board, DisplayMode, headsup::Deck};
 fn display(deck: Deck, mode: DisplayMode) {
     let mut dealer = deck.dealer();
     println!("{}", dealer.deal_hole().display(mode));
+    println!("{}", dealer.deal_hole().display(mode));
 
     let mut board = Board::flop(dealer.deal_flop());
     println!("{}", board.display(mode));
