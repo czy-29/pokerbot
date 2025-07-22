@@ -1,7 +1,9 @@
-use pokerbot::gameplay::{Board, DisplayMode, headsup::Deck};
+use pokerbot::gameplay::{
+    Board, DisplayMode,
+    headsup::{Dealer, Deck},
+};
 
-fn display(deck: Deck, mode: DisplayMode) {
-    let mut dealer = deck.dealer();
+fn display(mut dealer: Dealer, mode: DisplayMode) {
     println!("{}", dealer.deal_hole().display(mode));
     println!("{}", dealer.deal_hole().display(mode));
 
@@ -26,20 +28,17 @@ fn main() {
     // Only when `ColoredEmoji && !no_white`:
     // print!("\x1b[107m\x1b[0J\x1b[30m");
 
-    let mut deck = Deck::default().shuffled();
-    display(deck, DisplayMode::ColoredEmoji);
+    let mut deck = Deck::default();
+    display(deck.shuffle_and_deal(), DisplayMode::ColoredEmoji);
 
-    deck.shuffle();
     println!();
-    display(deck, DisplayMode::ColoredUnicode);
+    display(deck.shuffle_and_deal(), DisplayMode::ColoredUnicode);
 
-    deck.shuffle();
     println!();
-    display(deck, DisplayMode::Unicode);
+    display(deck.shuffle_and_deal(), DisplayMode::Unicode);
 
-    deck.shuffle();
     println!();
-    display(deck, DisplayMode::Ascii);
+    display(deck.shuffle_and_deal(), DisplayMode::Ascii);
 
     // drop:
     // Only when `ColoredEmoji && !no_white`:

@@ -255,17 +255,8 @@ impl Default for Deck {
 }
 
 impl Deck {
-    pub fn shuffle(&mut self) {
+    pub fn shuffle_and_deal(&mut self) -> Dealer {
         self.0.shuffle(&mut rand::rng());
-    }
-
-    pub fn shuffled(&self) -> Self {
-        let mut deck = *self;
-        deck.shuffle();
-        deck
-    }
-
-    pub fn dealer(&self) -> Dealer {
         Dealer(self.0.into_iter())
     }
 }
@@ -347,10 +338,18 @@ impl HeadsUp {
         self.game_over = Some(game_over);
     }
 
+    fn deal_holes(&mut self, holes: [Hole; 2]) -> ObservableEvent {
+        // todo: blinds betting, save holes, other possibilities
+        ObservableEvent::DealHoles([Some(holes[0]), Some(holes[1])])
+    }
+
     fn event(&mut self, event: ObservableEvent) {
         match event {
             ObservableEvent::GameOver(game_over) => {
                 self.set_game_over(game_over);
+            }
+            ObservableEvent::DealHoles(_holes) => {
+                // todo: blinds betting, save holes, other possibilities
             }
             _ => {
                 // todo: restore history
@@ -365,6 +364,7 @@ pub struct Game {
     init_button: bool,
     players: [PlayerSender; 2],
     observer: Option<PlayerSender>,
+    deck: Deck,
     heads_up: HeadsUp,
 }
 
@@ -387,6 +387,7 @@ impl Game {
                 },
             ],
             observer: None,
+            deck: Default::default(),
             heads_up: HeadsUp::new(game_type, init_button),
         };
         let players = [
@@ -484,6 +485,14 @@ impl Game {
         if self.is_over() {
             return self.game_over();
         }
+
+        let mut dealer = self.deck.shuffle_and_deal();
+
+        // todo: result handling for the 2 statements
+        let deal_holes = self
+            .heads_up
+            .deal_holes([dealer.deal_hole(), dealer.deal_hole()]);
+        self.dispatch_event(deal_holes);
 
         // let button = self.next_button;
         let _big_blind = 500;
