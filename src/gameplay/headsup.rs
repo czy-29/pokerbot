@@ -302,6 +302,7 @@ struct HeadsUp {
 impl HeadsUp {
     fn new(game_type: GameType, button: bool) -> Self {
         let init_stack = game_type.init_stack();
+        let stacks = [init_stack, init_stack];
         let mut blind_levels = game_type.blind_levels();
         let cur_blind = blind_levels.next().unwrap(); // always has one
 
@@ -312,10 +313,10 @@ impl HeadsUp {
             blind_levels,
             cur_blind,
             button,
-            stacks: [init_stack, init_stack],
+            stacks,
             pot: 0,
             cur_round: [0, 0],
-            behinds: [0, 0],
+            behinds: stacks,
             events: Default::default(),
         }
     }
