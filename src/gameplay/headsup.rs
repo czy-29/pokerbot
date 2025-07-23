@@ -296,6 +296,7 @@ struct HeadsUp {
     pot: u32,
     cur_round: [u32; 2],
     behinds: [u32; 2],
+    events: Vec<ObservableEvent>,
 }
 
 impl HeadsUp {
@@ -315,6 +316,7 @@ impl HeadsUp {
             pot: 0,
             cur_round: [0, 0],
             behinds: [0, 0],
+            events: Default::default(),
         }
     }
 
@@ -344,6 +346,7 @@ impl HeadsUp {
     }
 
     fn event(&mut self, event: ObservableEvent) {
+        self.events.push(event);
         match event {
             ObservableEvent::GameOver(game_over) => {
                 self.set_game_over(game_over);
