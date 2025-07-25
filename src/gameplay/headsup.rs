@@ -3,17 +3,91 @@
 use super::*;
 use rand::prelude::*;
 use std::{array, ops::RangeInclusive, vec};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+    oneshot::{Sender, channel},
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum Action {
+pub struct Action(ActionValue);
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum ActionValue {
     Exit,
     Fold,
-    Check,
-    Call,
-    Bet(u32),
-    Raise(u32),
+    CheckOrCall,
+    BetOrRaise(u32),
     AllIn,
+}
+
+impl Action {
+    pub fn exit() -> Self {
+        Self(ActionValue::Exit)
+    }
+
+    pub fn fold() -> Self {
+        Self(ActionValue::Fold)
+    }
+
+    pub fn check_or_call() -> Self {
+        Self(ActionValue::CheckOrCall)
+    }
+
+    pub fn bet_or_raise(amount: u32) -> Option<Self> {
+        if amount == 0 || amount % 25 != 0 {
+            None // Invalid bet or raise amount
+        } else {
+            Some(Self(ActionValue::BetOrRaise(amount)))
+        }
+    }
+
+    pub fn all_in() -> Self {
+        Self(ActionValue::AllIn)
+    }
+
+    pub fn value(&self) -> ActionValue {
+        self.0
+    }
+
+    fn is_exit(&self) -> bool {
+        matches!(self.0, ActionValue::Exit)
+    }
+
+    fn is_fold(&self) -> bool {
+        matches!(self.0, ActionValue::Fold)
+    }
+
+    fn is_check_or_call(&self) -> bool {
+        matches!(self.0, ActionValue::CheckOrCall)
+    }
+
+    fn is_all_in(&self) -> bool {
+        matches!(self.0, ActionValue::AllIn)
+    }
+}
+
+impl FromStr for Action {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "e" | "x" => Ok(Self::exit()),
+            "f" => Ok(Self::fold()),
+            "c" => Ok(Self::check_or_call()),
+            "a" => Ok(Self::all_in()),
+            s => s
+                .parse::<u32>()
+                .map_err(|_| ())
+                .and_then(|amount| Self::bet_or_raise(amount).ok_or(())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum ActionSendError {
+    NotHeroTurn,
+    InvalidAction,
+    GameAbort(GameOver),
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
@@ -126,17 +200,35 @@ pub enum ObservableEvent {
     GameOver(GameOver),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum PlayerEvent {
     Observable(ObservableEvent),
-    HeroTurn,
+    HeroTurn(BetBound),
 }
 
 impl PlayerEvent {
     const fn unwrap_observable(self) -> ObservableEvent {
         match self {
             Self::Observable(observable) => observable,
-            Self::HeroTurn => unreachable!(),
+            Self::HeroTurn(_) => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum InternalEvent {
+    Observable(ObservableEvent),
+    HeroTurn(BetBound, Sender<Action>),
+}
+
+impl InternalEvent {
+    fn take_player(self) -> (PlayerEvent, Option<(BetBound, Sender<Action>)>) {
+        match self {
+            Self::Observable(event) => (PlayerEvent::Observable(event), None),
+            Self::HeroTurn(bet_bound, sender) => (
+                PlayerEvent::HeroTurn(bet_bound.clone()),
+                Some((bet_bound, sender)),
+            ),
         }
     }
 }
@@ -145,7 +237,8 @@ impl PlayerEvent {
 pub struct Player {
     game_type: GameType,
     visibility: Visibility,
-    recv: UnboundedReceiver<PlayerEvent>,
+    recv: UnboundedReceiver<InternalEvent>,
+    hero_turn: Option<(BetBound, Sender<Action>)>,
     heads_up: HeadsUp,
 }
 
@@ -153,13 +246,14 @@ impl Player {
     fn new(
         game_type: GameType,
         visibility: Visibility,
-        recv: UnboundedReceiver<PlayerEvent>,
+        recv: UnboundedReceiver<InternalEvent>,
         button: bool,
     ) -> Self {
         Self {
             game_type,
             visibility,
             recv,
+            hero_turn: None,
             heads_up: HeadsUp::new(game_type, button),
         }
     }
@@ -177,12 +271,45 @@ impl Player {
             return None;
         }
 
-        let event = self.recv.recv().await.unwrap_or(self.heads_up.abort());
+        let (event, hero_turn) = self
+            .recv
+            .recv()
+            .await
+            .unwrap_or(InternalEvent::Observable(ObservableEvent::GameOver(
+                self.heads_up.abort(),
+            )))
+            .take_player();
+
+        self.hero_turn = hero_turn;
         if let PlayerEvent::Observable(event) = event {
             self.heads_up.event(event);
         }
 
         Some(event)
+    }
+
+    pub fn send_action(&mut self, action: Action) -> Result<(), ActionSendError> {
+        if self.hero_turn.is_none() {
+            return Err(ActionSendError::NotHeroTurn);
+        }
+
+        // hero_turn is guaranteed to be Some here
+        if !self.hero_turn.as_ref().unwrap().0.validate_action(action) {
+            return Err(ActionSendError::InvalidAction);
+        }
+
+        // hero_turn is guaranteed to be Some here
+        if self.hero_turn.take().unwrap().1.send(action).is_err() {
+            let game_over = self.heads_up.abort();
+            self.heads_up.event(ObservableEvent::GameOver(game_over));
+            return Err(ActionSendError::GameAbort(game_over));
+        }
+
+        Ok(())
+    }
+
+    pub fn parse_send_action(&mut self, action: &str) -> Result<(), ActionSendError> {
+        self.send_action(action.parse().map_err(|_| ActionSendError::InvalidAction)?)
     }
 }
 
@@ -219,17 +346,27 @@ pub enum GameOver {
 #[derive(Debug)]
 struct PlayerSender {
     visibility: Visibility,
-    send: UnboundedSender<PlayerEvent>,
+    send: UnboundedSender<InternalEvent>,
 }
 
 impl PlayerSender {
     fn send(&self, event: ObservableEvent) -> bool {
         // todo: transform event (God |-> FirstPerson)
-        self.send.send(PlayerEvent::Observable(event)).is_ok()
+        self.send.send(InternalEvent::Observable(event)).is_ok()
     }
 
-    async fn turn(&self, _bet_bound: BetBound) -> Option<Action> {
-        todo!()
+    async fn turn(&self, bet_bound: BetBound) -> Option<Action> {
+        let (send, recv) = channel();
+
+        if self
+            .send
+            .send(InternalEvent::HeroTurn(bet_bound, send))
+            .is_err()
+        {
+            return None; // Player crashed
+        }
+
+        recv.await.ok()
     }
 }
 
@@ -280,6 +417,7 @@ pub struct Dealer(array::IntoIter<Card, 52>);
 
 impl Dealer {
     pub fn deal_card(&mut self) -> Card {
+        // Always has cards left, guaranteed by the game logic
         self.0.next().unwrap()
     }
 
@@ -293,7 +431,7 @@ impl Dealer {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-enum BetBound {
+pub enum BetBound {
     FoldCheckAllin,
     FoldCheckBetAllin(RangeInclusive<u32>),
     FoldAllin,
@@ -302,6 +440,36 @@ enum BetBound {
     FoldCallRaiseAllin(RangeInclusive<u32>),
     FoldBetAllin(RangeInclusive<u32>), // river nuts button(!opened)
     FoldRaiseAllin(RangeInclusive<u32>), // river nuts opened
+}
+
+impl BetBound {
+    pub fn validate_action(&self, action: Action) -> bool {
+        if action.is_exit() || action.is_fold() {
+            return true; // always valid
+        }
+
+        match self {
+            Self::FoldCheckAllin | Self::FoldCallAllin => {
+                action.is_check_or_call() || action.is_all_in()
+            }
+            Self::FoldCheckBetAllin(range) | Self::FoldCallRaiseAllin(range) => {
+                if let ActionValue::BetOrRaise(amount) = action.value() {
+                    range.contains(&amount)
+                } else {
+                    action.is_check_or_call() || action.is_all_in()
+                }
+            }
+            Self::FoldAllin => action.is_all_in(),
+            Self::FoldCall => action.is_check_or_call(),
+            Self::FoldBetAllin(range) | Self::FoldRaiseAllin(range) => {
+                if let ActionValue::BetOrRaise(amount) = action.value() {
+                    range.contains(&amount)
+                } else {
+                    action.is_all_in()
+                }
+            }
+        }
+    }
 }
 
 // todo: HeadsUp: core gameplay, rules, logic, and state machine.
@@ -366,12 +534,12 @@ impl HeadsUp {
         self.game_over
     }
 
-    fn abort(&self) -> PlayerEvent {
-        PlayerEvent::Observable(ObservableEvent::GameOver(if self.is_sng {
+    fn abort(&self) -> GameOver {
+        if self.is_sng {
             GameOver::GameAbort
         } else {
             GameOver::AbortCheckout(self.stacks)
-        }))
+        }
     }
 
     fn force_exit(&self, player: bool) -> GameOver {
@@ -590,6 +758,10 @@ impl Game {
         self.players[0].send(event);
         self.players[1].send(event);
         Some(game_over)
+    }
+
+    async fn run_bet_round(&mut self) {
+        todo!() // Implement betting round logic
     }
 
     pub async fn run_hand(&mut self) -> Option<GameOver> {
