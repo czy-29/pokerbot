@@ -2,8 +2,19 @@
 
 use super::*;
 use rand::prelude::*;
-use std::{array, vec};
+use std::{array, ops::RangeInclusive, vec};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum Action {
+    Exit,
+    Fold,
+    Check,
+    Call,
+    Bet(u32),
+    Raise(u32),
+    AllIn,
+}
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum CashBuyin {
@@ -109,7 +120,9 @@ pub enum Visibility {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ObservableEvent {
     DealHoles([Option<Hole>; 2]),
-    ActionTurn(bool),
+    ShowdownAll([Hole; 2]),
+    ShowdownAuto([Hole; 2]), // board nuts auto chop
+    PlayerAction(Action),
     GameOver(GameOver),
 }
 
@@ -215,7 +228,7 @@ impl PlayerSender {
         self.send.send(PlayerEvent::Observable(event)).is_ok()
     }
 
-    async fn turn(&self, _bounds: ()) -> Option<ObservableEvent> {
+    async fn turn(&self, _bet_bound: BetBound) -> Option<Action> {
         todo!()
     }
 }
@@ -279,6 +292,18 @@ impl Dealer {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+enum BetBound {
+    FoldCheckAllin,
+    FoldCheckBetAllin(RangeInclusive<u32>),
+    FoldAllin,
+    FoldCall,
+    FoldCallAllin,
+    FoldCallRaiseAllin(RangeInclusive<u32>),
+    FoldBetAllin(RangeInclusive<u32>), // river nuts button(!opened)
+    FoldRaiseAllin(RangeInclusive<u32>), // river nuts opened
+}
+
 // todo: HeadsUp: core gameplay, rules, logic, and state machine.
 #[derive(Debug, Clone)]
 struct HeadsUp {
@@ -291,11 +316,17 @@ struct HeadsUp {
 
     // current state
     cur_blind: u16,
+    cur_turn: bool,
     button: bool,
     stacks: [u32; 2],
     pot: u32,
     cur_round: [u32; 2],
     behinds: [u32; 2],
+    last_bet: u32,
+    last_aggressor: bool,
+    opened: bool,
+    holes: [Option<Hole>; 2],
+    board: Board,
     events: Vec<ObservableEvent>,
 }
 
@@ -312,11 +343,17 @@ impl HeadsUp {
             hands_limit: game_type.hands_limit(),
             blind_levels,
             cur_blind,
+            cur_turn: button,
             button,
             stacks,
             pot: 0,
             cur_round: [0, 0],
             behinds: stacks,
+            last_bet: 0,
+            last_aggressor: button,
+            opened: false,
+            holes: [None, None],
+            board: Default::default(),
             events: Default::default(),
         }
     }
@@ -337,13 +374,96 @@ impl HeadsUp {
         }))
     }
 
+    fn force_exit(&self, player: bool) -> GameOver {
+        if self.is_sng {
+            GameOver::ExitAbandon(player)
+        } else {
+            GameOver::ExitCheckout(player, self.stacks)
+        }
+    }
+
     fn set_game_over(&mut self, game_over: GameOver) {
         self.game_over = Some(game_over);
     }
 
-    fn deal_holes(&mut self, holes: [Hole; 2]) -> ObservableEvent {
-        // todo: blinds betting, save holes, other possibilities
-        ObservableEvent::DealHoles([Some(holes[0]), Some(holes[1])])
+    fn set_holes(&mut self, holes: [Hole; 2]) {
+        self.holes = [Some(holes[0]), Some(holes[1])];
+    }
+
+    fn big_blind(&self) -> u32 {
+        self.cur_blind as u32
+    }
+
+    // todo: river nuts
+    fn bet_bound(&self) -> BetBound {
+        let hero = if self.cur_turn { 0 } else { 1 };
+        let behind = self.behinds[hero];
+
+        // can check
+        if self.cur_round[0] == 0 && self.cur_round[1] == 0 {
+            let big_blind = self.big_blind();
+
+            return if behind <= big_blind {
+                BetBound::FoldCheckAllin
+            } else {
+                BetBound::FoldCheckBetAllin(big_blind..=behind)
+            };
+        }
+
+        let villain = 1 - hero;
+        let villian_bet = self.cur_round[villain];
+
+        // cover
+        if behind <= villian_bet {
+            return BetBound::FoldAllin;
+        }
+
+        // villian all in
+        if self.behinds[villain] == villian_bet {
+            return BetBound::FoldCall;
+        }
+
+        let min_raise = villian_bet + (villian_bet - self.last_bet);
+
+        // call or all in
+        if behind <= min_raise {
+            return BetBound::FoldCallAllin;
+        }
+
+        BetBound::FoldCallRaiseAllin(min_raise..=behind)
+    }
+
+    fn effective_behind(&self) -> u32 {
+        self.behinds[0].min(self.behinds[1])
+    }
+
+    fn deal_holes(&mut self, holes: [Hole; 2]) -> Option<(bool, BetBound)> {
+        self.set_holes(holes);
+        self.deal_holes_int()?;
+        Some((self.cur_turn, self.bet_bound()))
+    }
+
+    fn deal_holes_int(&mut self) -> Option<()> {
+        let effective_stack = self.effective_behind();
+        let big_blind = self.big_blind();
+        let small_blind = big_blind / 2;
+
+        // forced all in
+        if effective_stack <= small_blind {
+            self.pot += effective_stack * 2;
+            self.behinds[0] -= effective_stack;
+            self.behinds[1] -= effective_stack;
+            return None;
+        }
+
+        let sb = if self.button { 0 } else { 1 };
+        let bb = 1 - sb;
+
+        // blinds betting
+        self.cur_round[sb] = small_blind;
+        self.cur_round[bb] = big_blind.min(self.behinds[bb]);
+
+        Some(())
     }
 
     fn event(&mut self, event: ObservableEvent) {
@@ -352,8 +472,12 @@ impl HeadsUp {
             ObservableEvent::GameOver(game_over) => {
                 self.set_game_over(game_over);
             }
-            ObservableEvent::DealHoles(_holes) => {
-                // todo: blinds betting, save holes, other possibilities
+            ObservableEvent::DealHoles(holes) => {
+                self.holes = holes;
+                self.deal_holes_int();
+            }
+            ObservableEvent::ShowdownAll(holes) => {
+                self.set_holes(holes);
             }
             _ => {
                 // todo: restore history
@@ -451,28 +575,11 @@ impl Game {
         None
     }
 
-    async fn player_action(&mut self, player0: bool, bounds: ()) -> Result<ObservableEvent, bool> {
-        let ob_event = ObservableEvent::ActionTurn(player0);
-        self.send_ob(ob_event);
-        let send = if player0 {
-            &self.players[1]
-        } else {
-            &self.players[0]
-        };
-        let turn = if player0 {
-            &self.players[0]
-        } else {
-            &self.players[1]
-        };
-
-        // Err(true) for player0 crashing,
-        // Err(false) for player1 crashing
-
-        if !send.send(ob_event) {
-            return Err(!player0);
-        }
-
-        turn.turn(bounds).await.ok_or(player0)
+    // None for crashing
+    async fn player_action(&mut self, cur_turn: bool, bet_bound: BetBound) -> Option<Action> {
+        self.players[if cur_turn { 0 } else { 1 }]
+            .turn(bet_bound)
+            .await
     }
 
     // infallible game over
@@ -492,11 +599,19 @@ impl Game {
 
         let mut dealer = self.deck.shuffle_and_deal();
 
-        // todo: result handling for the 2 statements
-        let deal_holes = self
-            .heads_up
-            .deal_holes([dealer.deal_hole(), dealer.deal_hole()]);
-        self.dispatch_event(deal_holes);
+        let holes = [dealer.deal_hole(), dealer.deal_hole()];
+        let bet_info = self.heads_up.deal_holes(holes);
+        let mut _showdown_all = bet_info.is_none();
+
+        if let Some(player) =
+            self.dispatch_event(ObservableEvent::DealHoles([Some(holes[0]), Some(holes[1])]))
+        {
+            return self.send_game_over(self.heads_up.force_exit(player));
+        }
+
+        if let Some((cur_turn, bet_bound)) = bet_info {
+            let _action = self.player_action(cur_turn, bet_bound).await;
+        }
 
         // let button = self.next_button;
         let _big_blind = 500;
