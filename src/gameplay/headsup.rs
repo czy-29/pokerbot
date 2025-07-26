@@ -513,7 +513,7 @@ struct HeadsUp {
     hands_limit: Option<u16>,
     blind_levels: vec::IntoIter<u16>,
 
-    // current state
+    // current hand state
     cur_blind: u16,
     cur_turn: bool,
     button: bool,
