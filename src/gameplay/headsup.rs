@@ -186,8 +186,7 @@ impl GameType {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Visibility {
     None,
-    Player0,
-    Player1,
+    Player(bool), // true for player 0, false for player 1
     God,
 }
 
@@ -688,7 +687,7 @@ pub struct Game {
 
 impl Game {
     pub fn new(game_type: GameType) -> (Self, [Player; 2]) {
-        let vis = [Visibility::Player0, Visibility::Player1];
+        let vis = [Visibility::Player(true), Visibility::Player(false)];
         let [(send0, recv0), (send1, recv1)] = [unbounded_channel(), unbounded_channel()];
         let init_button = rand::random();
         let game = Self {
@@ -721,7 +720,7 @@ impl Game {
         }
 
         let (send, recv) = unbounded_channel();
-        let button = if visibility == Visibility::Player1 {
+        let button = if visibility == Visibility::Player(false) {
             !self.init_button
         } else {
             self.init_button
