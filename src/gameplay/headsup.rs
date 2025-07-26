@@ -294,9 +294,9 @@ impl Player {
         }
 
         // hero_turn is guaranteed to be Some here
-        if !self.hero_turn.as_ref().unwrap().0.validate_action(action) {
+        let Some(action) = self.hero_turn.as_ref().unwrap().0.alter_eq(action) else {
             return Err(ActionSendError::InvalidAction);
-        }
+        };
 
         // hero_turn is guaranteed to be Some here
         if self.hero_turn.take().unwrap().1.send(action).is_err() {
@@ -469,6 +469,28 @@ impl BetBound {
                 }
             }
         }
+    }
+
+    pub fn alter_eq(&self, action: Action) -> Option<Action> {
+        if !self.validate_action(action) {
+            return None; // Invalid action
+        }
+
+        if let ActionValue::BetOrRaise(amount) = action.value() {
+            match self {
+                Self::FoldCheckBetAllin(range)
+                | Self::FoldCallRaiseAllin(range)
+                | Self::FoldBetAllin(range)
+                | Self::FoldRaiseAllin(range) => {
+                    if amount == *range.end() {
+                        return Some(Action::all_in());
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        Some(action)
     }
 }
 
