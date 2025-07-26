@@ -493,6 +493,16 @@ impl BetBound {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+enum ActionOver {
+    TurnOver,
+    RoundOver,
+    ShowdownAll,
+    ShowndownRiver,
+    HandOver,
+    GameOver(GameOver),
+}
+
 // todo: HeadsUp: core gameplay, rules, logic, and state machine.
 #[derive(Debug, Clone)]
 struct HeadsUp {
@@ -653,6 +663,10 @@ impl HeadsUp {
         self.cur_round[bb] = big_blind.min(self.behinds[bb]);
 
         Some(())
+    }
+
+    fn action(&mut self, _action: Action) -> ActionOver {
+        todo!() // Implement action logic
     }
 
     fn event(&mut self, event: ObservableEvent) {
