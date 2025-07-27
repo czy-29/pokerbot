@@ -580,100 +580,12 @@ impl HandState {
         }
     }
 
-    fn event(&mut self, _event: ObservableEvent) {
-        todo!() // Implement event handling logic
-    }
-}
-
-// todo: HeadsUp: core gameplay, rules, logic, and state machine.
-#[derive(Debug, Clone)]
-struct HeadsUp {
-    game_over: Option<GameOver>,
-
-    // game info
-    is_sng: bool,
-    hands_limit: Option<u16>,
-    blind_levels: vec::IntoIter<u16>,
-
-    // current hand state
-    // todo: change to use HandState
-    cur_blind: u16,
-    cur_turn: bool,
-    button: bool,
-    stacks: [u32; 2],
-    pot: u32,
-    cur_round: [u32; 2],
-    behinds: [u32; 2],
-    last_bet: u32,
-    last_aggressor: bool,
-    opened: bool,
-    holes: [Option<Hole>; 2],
-    board: Board,
-    events: Vec<ObservableEvent>,
-}
-
-impl HeadsUp {
-    fn new(game_type: GameType, button: bool) -> Self {
-        let init_stack = game_type.init_stack();
-        let stacks = [init_stack, init_stack];
-        let mut blind_levels = game_type.blind_levels();
-        let cur_blind = blind_levels.next().unwrap(); // always has one
-
-        Self {
-            game_over: None,
-            is_sng: game_type.is_sng(),
-            hands_limit: game_type.hands_limit(),
-            blind_levels,
-            cur_blind,
-            cur_turn: button,
-            button,
-            stacks,
-            pot: 0,
-            cur_round: [0, 0],
-            behinds: stacks,
-            last_bet: 0,
-            last_aggressor: button,
-            opened: false,
-            holes: [None, None],
-            board: Default::default(),
-            events: Default::default(),
-        }
-    }
-
-    fn is_over(&self) -> bool {
-        self.game_over.is_some()
-    }
-
-    fn game_over(&self) -> Option<GameOver> {
-        self.game_over
-    }
-
-    fn abort(&self) -> GameOver {
-        if self.is_sng {
-            GameOver::GameAbort
-        } else {
-            GameOver::AbortCheckout(self.stacks)
-        }
-    }
-
-    fn force_exit(&self, player: bool) -> GameOver {
-        if self.is_sng {
-            GameOver::ExitAbandon(player)
-        } else {
-            GameOver::ExitCheckout(player, self.stacks)
-        }
-    }
-
-    fn set_game_over(&mut self, game_over: GameOver) {
-        self.game_over = Some(game_over);
-    }
-
     fn set_holes(&mut self, holes: [Hole; 2]) {
         self.holes = [Some(holes[0]), Some(holes[1])];
     }
 
     fn big_blind(&self) -> u32 {
-        self.cur_blind as u32
+        self.blind as u32
     }
 
     // todo: river nuts
@@ -752,12 +664,8 @@ impl HeadsUp {
         todo!() // Implement action logic
     }
 
-    fn event(&mut self, event: ObservableEvent) -> Option<HandHistory> {
-        self.events.push(event);
+    fn event(&mut self, event: ObservableEvent) {
         match event {
-            ObservableEvent::GameOver(game_over) => {
-                self.set_game_over(game_over);
-            }
             ObservableEvent::DealHoles(holes) => {
                 self.holes = holes;
                 self.deal_holes_int();
@@ -765,9 +673,98 @@ impl HeadsUp {
             ObservableEvent::ShowdownAll(holes) => {
                 self.set_holes(holes);
             }
+            ObservableEvent::GameOver(_) => unreachable!(),
             _ => {
                 // todo: restore history
             }
+        }
+    }
+}
+
+// todo: HeadsUp: core gameplay, rules, logic, and state machine.
+#[derive(Debug, Clone)]
+struct HeadsUp {
+    game_over: Option<GameOver>,
+
+    // game info
+    is_sng: bool,
+    hands_limit: Option<u16>,
+    blind_levels: vec::IntoIter<u16>,
+
+    // current hand state
+    hand_state: HandState,
+    events: Vec<ObservableEvent>,
+}
+
+impl HeadsUp {
+    fn new(game_type: GameType, button: bool) -> Self {
+        let init_stack = game_type.init_stack();
+        let stacks = [init_stack, init_stack];
+        let mut blind_levels = game_type.blind_levels();
+        let blind = blind_levels.next().unwrap(); // always has one
+
+        Self {
+            game_over: None,
+            is_sng: game_type.is_sng(),
+            hands_limit: game_type.hands_limit(),
+            blind_levels,
+            hand_state: HandState::new(blind, button, stacks),
+            events: Default::default(),
+        }
+    }
+
+    fn is_over(&self) -> bool {
+        self.game_over.is_some()
+    }
+
+    fn game_over(&self) -> Option<GameOver> {
+        self.game_over
+    }
+
+    fn stacks(&self) -> [u32; 2] {
+        self.hand_state.stacks
+    }
+
+    fn abort(&self) -> GameOver {
+        if self.is_sng {
+            GameOver::GameAbort
+        } else {
+            GameOver::AbortCheckout(self.stacks())
+        }
+    }
+
+    fn force_exit(&self, player: bool) -> GameOver {
+        if self.is_sng {
+            GameOver::ExitAbandon(player)
+        } else {
+            GameOver::ExitCheckout(player, self.stacks())
+        }
+    }
+
+    fn set_game_over(&mut self, game_over: GameOver) {
+        self.game_over = Some(game_over);
+    }
+
+    fn bet_bound(&self) -> BetBound {
+        self.hand_state.bet_bound()
+    }
+
+    fn deal_holes(&mut self, holes: [Hole; 2]) -> Option<(bool, BetBound)> {
+        self.hand_state.deal_holes(holes)
+    }
+
+    // todo: action logic
+    fn action(&mut self, action: Action) -> ActionOver {
+        self.hand_state.action(action)
+    }
+
+    fn event(&mut self, event: ObservableEvent) -> Option<HandHistory> {
+        self.events.push(event);
+
+        if let ObservableEvent::GameOver(game_over) = event {
+            self.set_game_over(game_over);
+        } else {
+            self.hand_state.event(event);
         }
 
         // todo: HandHistory
