@@ -2,7 +2,7 @@
 
 use super::*;
 use rand::prelude::*;
-use std::{array, ops::RangeInclusive, vec};
+use std::{array, ops::RangeInclusive, slice::Iter, vec};
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
     oneshot::{Sender, channel},
@@ -239,6 +239,7 @@ pub struct Player {
     recv: UnboundedReceiver<InternalEvent>,
     hero_turn: Option<(BetBound, Sender<Action>)>,
     heads_up: HeadsUp,
+    hands_history: Vec<HandHistory>,
 }
 
 impl Player {
@@ -254,6 +255,7 @@ impl Player {
             recv,
             hero_turn: None,
             heads_up: HeadsUp::new(game_type, button),
+            hands_history: Default::default(),
         }
     }
 
@@ -263,6 +265,10 @@ impl Player {
 
     pub fn game_over(&self) -> Option<GameOver> {
         self.heads_up.game_over()
+    }
+
+    pub fn hands_history(&self) -> &[HandHistory] {
+        &self.hands_history
     }
 
     pub async fn tick_event(&mut self) -> Option<PlayerEvent> {
@@ -281,7 +287,9 @@ impl Player {
 
         self.hero_turn = hero_turn;
         if let PlayerEvent::Observable(event) = event {
-            self.heads_up.event(event);
+            if let Some(hand_history) = self.heads_up.event(event) {
+                self.hands_history.push(hand_history);
+            }
         }
 
         Some(event)
@@ -503,6 +511,80 @@ enum ActionOver {
     GameOver(GameOver),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct HandHistory {
+    blind: u16,
+    button: bool,
+    stacks: [u32; 2],
+    events: Vec<ObservableEvent>,
+}
+
+impl HandHistory {
+    pub fn replay(&self) -> HandReplay {
+        HandReplay {
+            events: self.events.iter(),
+            hand_state: HandState::new(self.blind, self.button, self.stacks),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct HandReplay<'a> {
+    events: Iter<'a, ObservableEvent>,
+    hand_state: HandState,
+}
+
+impl<'a> HandReplay<'a> {
+    pub fn next_event(&mut self) -> Option<ObservableEvent> {
+        let event = self.events.next().copied();
+
+        if let Some(event) = event {
+            self.hand_state.event(event);
+        }
+
+        event
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+struct HandState {
+    blind: u16,
+    button: bool,
+    stacks: [u32; 2],
+    pot: u32,
+    cur_turn: bool,
+    cur_round: [u32; 2],
+    behinds: [u32; 2],
+    last_bet: u32,
+    last_aggressor: bool,
+    opened: bool,
+    holes: [Option<Hole>; 2],
+    board: Board,
+}
+
+impl HandState {
+    fn new(blind: u16, button: bool, stacks: [u32; 2]) -> Self {
+        Self {
+            blind,
+            button,
+            stacks,
+            pot: 0,
+            cur_turn: button,
+            cur_round: [0, 0],
+            behinds: stacks,
+            last_bet: 0,
+            last_aggressor: button,
+            opened: false,
+            holes: [None, None],
+            board: Default::default(),
+        }
+    }
+
+    fn event(&mut self, _event: ObservableEvent) {
+        todo!() // Implement event handling logic
+    }
+}
+
 // todo: HeadsUp: core gameplay, rules, logic, and state machine.
 #[derive(Debug, Clone)]
 struct HeadsUp {
@@ -514,6 +596,7 @@ struct HeadsUp {
     blind_levels: vec::IntoIter<u16>,
 
     // current hand state
+    // todo: change to use HandState
     cur_blind: u16,
     cur_turn: bool,
     button: bool,
@@ -669,7 +752,7 @@ impl HeadsUp {
         todo!() // Implement action logic
     }
 
-    fn event(&mut self, event: ObservableEvent) {
+    fn event(&mut self, event: ObservableEvent) -> Option<HandHistory> {
         self.events.push(event);
         match event {
             ObservableEvent::GameOver(game_over) => {
@@ -686,6 +769,9 @@ impl HeadsUp {
                 // todo: restore history
             }
         }
+
+        // todo: HandHistory
+        None
     }
 }
 
