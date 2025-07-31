@@ -605,19 +605,19 @@ impl HandState {
         }
 
         let villain = 1 - hero;
-        let villian_bet = self.cur_round[villain];
+        let villain_bet = self.cur_round[villain];
 
         // cover
-        if behind <= villian_bet {
+        if behind <= villain_bet {
             return BetBound::FoldAllin;
         }
 
-        // villian all in
-        if self.behinds[villain] == villian_bet {
+        // villain all in
+        if self.behinds[villain] == villain_bet {
             return BetBound::FoldCall;
         }
 
-        let min_raise = villian_bet + (villian_bet - self.last_bet);
+        let min_raise = villain_bet + (villain_bet - self.last_bet);
 
         // call or all in
         if behind <= min_raise {
@@ -660,8 +660,50 @@ impl HandState {
         Some(())
     }
 
-    fn action(&mut self, _action: Action) -> ActionOver {
-        todo!() // Implement action logic
+    fn action(&mut self, action: Action) -> ActionOver {
+        let hero = if self.cur_turn { 0 } else { 1 };
+        let villain = 1 - hero;
+
+        match action.value() {
+            ActionValue::Exit | ActionValue::Fold => {
+                let round_lose = self.cur_round[hero];
+
+                self.behinds[hero] -= round_lose;
+                self.behinds[villain] += round_lose + self.pot;
+                self.stacks = self.behinds;
+
+                ActionOver::HandOver
+            }
+            ActionValue::BetOrRaise(amount) => {
+                self.opened = true;
+                self.last_aggressor = self.cur_turn;
+                self.cur_round[hero] = amount;
+                self.last_bet = self.cur_round[villain];
+                self.cur_turn = !self.cur_turn;
+
+                ActionOver::TurnOver
+            }
+            ActionValue::AllIn => {
+                let hero_behind = self.behinds[hero];
+                let villain_bet = self.cur_round[villain];
+
+                if hero_behind > villain_bet {
+                    // active all in
+                    self.opened = true;
+                    self.last_aggressor = self.cur_turn;
+                    self.cur_round[hero] = hero_behind;
+                    self.cur_turn = !self.cur_turn;
+
+                    ActionOver::TurnOver
+                } else {
+                    // passive all in
+                    todo!("Handle passive all in logic");
+                }
+            }
+            ActionValue::CheckOrCall => {
+                todo!("Handle check or call logic");
+            }
+        }
     }
 
     fn event(&mut self, event: ObservableEvent) {
