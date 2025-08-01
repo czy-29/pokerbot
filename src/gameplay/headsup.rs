@@ -685,9 +685,8 @@ impl HandState {
             }
             ActionValue::AllIn => {
                 let hero_behind = self.behinds[hero];
-                let villain_bet = self.cur_round[villain];
 
-                if hero_behind > villain_bet {
+                if hero_behind > self.cur_round[villain] {
                     // active all in
                     self.opened = true;
                     self.last_aggressor = self.cur_turn;
@@ -697,7 +696,15 @@ impl HandState {
                     ActionOver::TurnOver
                 } else {
                     // passive all in
-                    todo!("Handle passive all in logic");
+                    self.pot += hero_behind * 2;
+                    self.behinds[0] -= hero_behind;
+                    self.behinds[1] -= hero_behind;
+
+                    if self.board.is_river() {
+                        ActionOver::ShowndownRiver
+                    } else {
+                        ActionOver::ShowdownAll
+                    }
                 }
             }
             ActionValue::CheckOrCall => {
