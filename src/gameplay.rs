@@ -400,6 +400,22 @@ impl Board {
         }
     }
 
+    pub fn is_preflop(&self) -> bool {
+        matches!(self.0, BoardCards::Preflop)
+    }
+
+    pub fn is_flop(&self) -> bool {
+        matches!(self.0, BoardCards::Flop(_))
+    }
+
+    pub fn is_turn(&self) -> bool {
+        matches!(self.0, BoardCards::Turn { .. })
+    }
+
+    pub fn is_river(&self) -> bool {
+        matches!(self.0, BoardCards::River { .. })
+    }
+
     pub fn display(self, mode: DisplayMode) -> BoardDisplay {
         BoardDisplay { board: self, mode }
     }
