@@ -205,9 +205,12 @@ impl<const N: usize> Deref for CardsCombined<N> {
 }
 
 impl<const N: usize> CardsCombined<N> {
-    // Should check the length of the slice before calling this
     fn from_slice(cards: &[Card]) -> Self {
-        Self(cards.try_into().unwrap())
+        Self(
+            cards
+                .try_into()
+                .expect("Should check the length of the slice before calling this"),
+        )
     }
 
     fn unchecked(cards: [Card; N]) -> Self {

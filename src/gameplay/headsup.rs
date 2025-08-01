@@ -300,13 +300,24 @@ impl Player {
             return Err(ActionSendError::NotHeroTurn);
         }
 
-        // hero_turn is guaranteed to be Some here
-        let Some(action) = self.hero_turn.as_ref().unwrap().0.alter_eq(action) else {
+        let Some(action) = self
+            .hero_turn
+            .as_ref()
+            .expect("hero_turn should to be Some here")
+            .0
+            .alter_eq(action)
+        else {
             return Err(ActionSendError::InvalidAction);
         };
 
-        // hero_turn is guaranteed to be Some here
-        if self.hero_turn.take().unwrap().1.send(action).is_err() {
+        if self
+            .hero_turn
+            .take()
+            .expect("hero_turn should to be Some here")
+            .1
+            .send(action)
+            .is_err()
+        {
             let game_over = self.heads_up.abort();
             self.heads_up.event(ObservableEvent::GameOver(game_over));
             return Err(ActionSendError::GameAbort(game_over));
@@ -424,8 +435,7 @@ pub struct Dealer(array::IntoIter<Card, 52>);
 
 impl Dealer {
     pub fn deal_card(&mut self) -> Card {
-        // Always has cards left, guaranteed by the game logic
-        self.0.next().unwrap()
+        self.0.next().expect("Dealer should always have cards left")
     }
 
     pub fn deal_hole(&mut self) -> Hole {
@@ -750,7 +760,7 @@ impl HeadsUp {
         let init_stack = game_type.init_stack();
         let stacks = [init_stack, init_stack];
         let mut blind_levels = game_type.blind_levels();
-        let blind = blind_levels.next().unwrap(); // always has one
+        let blind = blind_levels.next().expect("Should always has one blind");
 
         Self {
             game_over: None,
