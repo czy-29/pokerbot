@@ -525,7 +525,7 @@ enum ActionOver {
 pub struct HandHistory {
     blind: u16,
     button: bool,
-    stacks: [u32; 2],
+    init_stacks: [u32; 2],
     events: Vec<ObservableEvent>,
 }
 
@@ -533,7 +533,7 @@ impl HandHistory {
     pub fn replay(&self) -> HandReplay {
         HandReplay {
             events: self.events.iter(),
-            hand_state: HandState::new(self.blind, self.button, self.stacks),
+            hand_state: HandState::new(self.blind, self.button, self.init_stacks),
         }
     }
 }
@@ -560,7 +560,7 @@ impl<'a> HandReplay<'a> {
 struct HandState {
     blind: u16,
     button: bool,
-    stacks: [u32; 2],
+    init_stacks: [u32; 2],
     pot: u32,
     cur_turn: bool,
     cur_round: [u32; 2],
@@ -573,15 +573,15 @@ struct HandState {
 }
 
 impl HandState {
-    fn new(blind: u16, button: bool, stacks: [u32; 2]) -> Self {
+    fn new(blind: u16, button: bool, init_stacks: [u32; 2]) -> Self {
         Self {
             blind,
             button,
-            stacks,
+            init_stacks,
             pot: 0,
             cur_turn: button,
             cur_round: [0, 0],
-            behinds: stacks,
+            behinds: init_stacks,
             last_bet: 0,
             last_aggressor: button,
             opened: false,
@@ -683,7 +683,6 @@ impl HandState {
 
                 self.behinds[hero] -= round_lose;
                 self.behinds[villain] += round_lose + self.pot;
-                self.stacks = self.behinds;
 
                 ActionOver::HandOver
             }
@@ -807,7 +806,7 @@ struct HeadsUp {
 impl HeadsUp {
     fn new(game_type: GameType, button: bool) -> Self {
         let init_stack = game_type.init_stack();
-        let stacks = [init_stack, init_stack];
+        let init_stacks = [init_stack, init_stack];
         let mut blind_levels = game_type.blind_levels();
         let blind = blind_levels.next().expect("Should always has one blind");
 
@@ -816,7 +815,7 @@ impl HeadsUp {
             is_sng: game_type.is_sng(),
             hands_limit: game_type.hands_limit(),
             blind_levels,
-            hand_state: HandState::new(blind, button, stacks),
+            hand_state: HandState::new(blind, button, init_stacks),
             hands: 0,
             events: Default::default(),
         }
@@ -831,7 +830,7 @@ impl HeadsUp {
     }
 
     fn stacks(&self) -> [u32; 2] {
-        self.hand_state.stacks
+        self.hand_state.init_stacks
     }
 
     fn abort(&self) -> GameOver {
