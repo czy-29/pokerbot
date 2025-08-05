@@ -590,6 +590,10 @@ impl HandState {
         }
     }
 
+    fn next(&self, blind: u16) -> Self {
+        Self::new(blind, !self.button, self.behinds)
+    }
+
     fn set_holes(&mut self, holes: [Hole; 2]) {
         self.holes = [Some(holes[0]), Some(holes[1])];
     }
