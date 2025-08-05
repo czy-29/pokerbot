@@ -449,14 +449,14 @@ impl Dealer {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum BetBound {
-    FoldCheckAllin,
-    FoldCheckBetAllin(RangeInclusive<u32>),
-    FoldAllin,
+    FoldCheckAllIn,
+    FoldCheckBetAllIn(RangeInclusive<u32>),
+    FoldAllIn,
     FoldCall,
-    FoldCallAllin,
-    FoldCallRaiseAllin(RangeInclusive<u32>),
-    FoldBetAllin(RangeInclusive<u32>), // river nuts button(!opened)
-    FoldRaiseAllin(RangeInclusive<u32>), // river nuts opened
+    FoldCallAllIn,
+    FoldCallRaiseAllIn(RangeInclusive<u32>),
+    FoldBetAllIn(RangeInclusive<u32>), // river nuts button(!opened)
+    FoldRaiseAllIn(RangeInclusive<u32>), // river nuts opened
 }
 
 impl BetBound {
@@ -466,19 +466,19 @@ impl BetBound {
         }
 
         match self {
-            Self::FoldCheckAllin | Self::FoldCallAllin => {
+            Self::FoldCheckAllIn | Self::FoldCallAllIn => {
                 action.is_check_or_call() || action.is_all_in()
             }
-            Self::FoldCheckBetAllin(range) | Self::FoldCallRaiseAllin(range) => {
+            Self::FoldCheckBetAllIn(range) | Self::FoldCallRaiseAllIn(range) => {
                 if let ActionValue::BetOrRaise(amount) = action.value() {
                     range.contains(&amount)
                 } else {
                     action.is_check_or_call() || action.is_all_in()
                 }
             }
-            Self::FoldAllin => action.is_all_in(),
+            Self::FoldAllIn => action.is_all_in(),
             Self::FoldCall => action.is_check_or_call(),
-            Self::FoldBetAllin(range) | Self::FoldRaiseAllin(range) => {
+            Self::FoldBetAllIn(range) | Self::FoldRaiseAllIn(range) => {
                 if let ActionValue::BetOrRaise(amount) = action.value() {
                     range.contains(&amount)
                 } else {
@@ -495,10 +495,10 @@ impl BetBound {
 
         if let ActionValue::BetOrRaise(amount) = action.value() {
             match self {
-                Self::FoldCheckBetAllin(range)
-                | Self::FoldCallRaiseAllin(range)
-                | Self::FoldBetAllin(range)
-                | Self::FoldRaiseAllin(range) => {
+                Self::FoldCheckBetAllIn(range)
+                | Self::FoldCallRaiseAllIn(range)
+                | Self::FoldBetAllIn(range)
+                | Self::FoldRaiseAllIn(range) => {
                     if amount == *range.end() {
                         return Some(Action::all_in());
                     }
@@ -611,9 +611,9 @@ impl HandState {
             let big_blind = self.big_blind();
 
             return if behind <= big_blind {
-                BetBound::FoldCheckAllin
+                BetBound::FoldCheckAllIn
             } else {
-                BetBound::FoldCheckBetAllin(big_blind..=behind)
+                BetBound::FoldCheckBetAllIn(big_blind..=behind)
             };
         }
 
@@ -622,7 +622,7 @@ impl HandState {
 
         // cover
         if behind <= villain_bet {
-            return BetBound::FoldAllin;
+            return BetBound::FoldAllIn;
         }
 
         // villain all in
@@ -634,10 +634,10 @@ impl HandState {
 
         // call or all in
         if behind <= min_raise {
-            return BetBound::FoldCallAllin;
+            return BetBound::FoldCallAllIn;
         }
 
-        BetBound::FoldCallRaiseAllin(min_raise..=behind)
+        BetBound::FoldCallRaiseAllIn(min_raise..=behind)
     }
 
     fn effective_behind(&self) -> u32 {
