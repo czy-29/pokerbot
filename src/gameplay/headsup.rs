@@ -136,16 +136,16 @@ impl GameType {
         matches!(self, Self::SNG(_))
     }
 
-    fn hands_limit(self) -> Option<u16> {
+    fn hands_limit(self) -> u16 {
         match self {
             Self::Cash { hands, .. } => {
                 if hands == 0 {
-                    None
+                    u16::MAX // no limit
                 } else {
-                    Some(hands)
+                    hands
                 }
             }
-            Self::SNG(_) => None,
+            Self::SNG(_) => 0, // SNG has no hands limit
         }
     }
 
@@ -795,7 +795,7 @@ struct HeadsUp {
 
     // game info
     is_sng: bool,
-    hands_limit: Option<u16>,
+    hands_limit: u16,
     blind_levels: vec::IntoIter<u16>,
 
     // current hand state
