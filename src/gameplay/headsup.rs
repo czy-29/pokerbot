@@ -688,11 +688,14 @@ impl HandState {
                 ActionOver::HandOver
             }
             ActionValue::BetOrRaise(amount) => {
-                self.opened = true;
                 self.last_aggressor = self.cur_turn;
                 self.cur_round[hero] = amount;
                 self.last_bet = self.cur_round[villain];
                 self.cur_turn = !self.cur_turn;
+
+                if self.board.is_preflop() {
+                    self.opened = true;
+                }
 
                 ActionOver::TurnOver
             }
@@ -701,7 +704,6 @@ impl HandState {
 
                 if hero_behind > self.cur_round[villain] {
                     // active all in
-                    self.opened = true;
                     self.last_aggressor = self.cur_turn;
                     self.cur_round[hero] = hero_behind;
                     self.cur_turn = !self.cur_turn;
