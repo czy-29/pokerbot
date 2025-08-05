@@ -724,6 +724,7 @@ impl HandState {
             }
             ActionValue::CheckOrCall => {
                 if self.can_check() {
+                    // check
                     if self.board.is_preflop() {
                         ActionOver::RoundOver
                     } else {
@@ -742,7 +743,32 @@ impl HandState {
                         }
                     }
                 } else {
-                    todo!("call logic");
+                    // call
+                    let villain_bet = self.cur_round[villain];
+
+                    self.pot += villain_bet * 2;
+                    self.behinds[0] -= villain_bet;
+                    self.behinds[1] -= villain_bet;
+
+                    let is_river = self.board.is_river();
+                    let villain_all_in = self.behinds[villain] == 0;
+
+                    if !is_river && !villain_all_in {
+                        self.last_bet = 0;
+                        self.cur_round[0] = 0;
+                        self.cur_round[1] = 0;
+                        self.cur_turn = !self.button;
+                    }
+
+                    if is_river {
+                        ActionOver::ShowndownRiver
+                    } else if villain_all_in {
+                        ActionOver::ShowdownAll
+                    } else if self.board.is_preflop() && !self.opened {
+                        ActionOver::TurnOver
+                    } else {
+                        ActionOver::RoundOver
+                    }
                 }
             }
         }
