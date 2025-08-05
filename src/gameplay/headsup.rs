@@ -598,13 +598,16 @@ impl HandState {
         self.blind as u32
     }
 
+    fn can_check(&self) -> bool {
+        self.cur_round[0] == 0 && self.cur_round[1] == 0
+    }
+
     // todo: river nuts
     fn bet_bound(&self) -> BetBound {
         let hero = if self.cur_turn { 0 } else { 1 };
         let behind = self.behinds[hero];
 
-        // can check
-        if self.cur_round[0] == 0 && self.cur_round[1] == 0 {
+        if self.can_check() {
             let big_blind = self.big_blind();
 
             return if behind <= big_blind {
@@ -718,7 +721,27 @@ impl HandState {
                 }
             }
             ActionValue::CheckOrCall => {
-                todo!("Handle check or call logic");
+                if self.can_check() {
+                    if self.board.is_preflop() {
+                        ActionOver::RoundOver
+                    } else {
+                        let round_over = self.cur_turn == self.button;
+
+                        if round_over && self.board.is_river() {
+                            ActionOver::ShowndownRiver
+                        } else {
+                            self.cur_turn = !self.cur_turn;
+
+                            if round_over {
+                                ActionOver::RoundOver
+                            } else {
+                                ActionOver::TurnOver
+                            }
+                        }
+                    }
+                } else {
+                    todo!("call logic");
+                }
             }
         }
     }
