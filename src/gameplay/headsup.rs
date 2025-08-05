@@ -800,6 +800,7 @@ struct HeadsUp {
 
     // current hand state
     hand_state: HandState,
+    hands: u16,
     events: Vec<ObservableEvent>,
 }
 
@@ -816,6 +817,7 @@ impl HeadsUp {
             hands_limit: game_type.hands_limit(),
             blind_levels,
             hand_state: HandState::new(blind, button, stacks),
+            hands: 0,
             events: Default::default(),
         }
     }
