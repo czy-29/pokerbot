@@ -518,7 +518,6 @@ enum ActionOver {
     ShowdownAll,
     ShowndownRiver,
     HandOver,
-    GameOver(GameOver),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -837,6 +836,19 @@ impl HeadsUp {
         self.hand_state.init_stacks
     }
 
+    fn hands_reached(&self) -> bool {
+        !(self.is_sng || self.hands < self.hands_limit)
+    }
+
+    fn next_blind(&mut self) -> u16 {
+        if let Some(blind) = self.blind_levels.next() {
+            blind
+        } else {
+            // no more blinds, continue with the last blind
+            self.hand_state.blind
+        }
+    }
+
     fn abort(&self) -> GameOver {
         if self.is_sng {
             GameOver::GameAbort
@@ -865,9 +877,33 @@ impl HeadsUp {
         self.hand_state.deal_holes(holes)
     }
 
-    // todo: action logic
-    fn action(&mut self, action: Action) -> ActionOver {
-        self.hand_state.action(action)
+    fn action(&mut self, action: Action) -> (ActionOver, Option<GameOver>) {
+        let action_over = self.hand_state.action(action);
+        let mut game_over = None;
+
+        if action_over == ActionOver::HandOver {
+            let stacks_checkout = self.hand_state.behinds;
+
+            if action.is_exit() {
+                let who_exit = self.hand_state.cur_turn;
+                game_over = Some(if self.is_sng {
+                    GameOver::ExitAbandon(who_exit)
+                } else {
+                    GameOver::ExitCheckout(who_exit, stacks_checkout)
+                });
+            } else {
+                self.hands += 1;
+
+                if self.hands_reached() {
+                    game_over = Some(GameOver::HandsReached(stacks_checkout));
+                } else {
+                    let next_blind = self.next_blind();
+                    self.hand_state = self.hand_state.next(next_blind);
+                }
+            }
+        }
+
+        (action_over, game_over)
     }
 
     fn event(&mut self, event: ObservableEvent) -> Option<HandHistory> {
