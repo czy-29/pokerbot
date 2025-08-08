@@ -15,10 +15,10 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# Because we are using 2024 Edition.
-# 因为我们正在使用2024 Edition。
-# https://blog.rust-lang.org/2025/02/20/Rust-1.85.0.html
-rust-version = "1.85.0"
+# Because we utilized the `explicitly inferred arguments to const generics` feature.
+# 因为我们使用了“显式推断的常量泛型参数”特性。
+# https://blog.rust-lang.org/2025/08/07/Rust-1.89.0/#explicitly-inferred-arguments-to-const-generics
+rust-version = "1.89.0"
 
 [package.metadata.docs.rs]
 all-features = true

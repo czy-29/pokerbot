@@ -273,7 +273,7 @@ impl<'a> CardsParser<'a> {
     }
 
     fn eat_cards<const N: usize>(&mut self) -> Option<CardsCombined<N>> {
-        let mut cards = [Card::default(); N];
+        let mut cards = [Card::default(); _];
         let mut parser = *self;
         for i in 0..N {
             match parser.card_eaten() {
