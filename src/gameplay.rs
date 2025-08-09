@@ -1,4 +1,4 @@
-use est::slice::SliceExt;
+use itertools::Itertools;
 use std::{
     fmt::{self, Display, Formatter},
     ops::Deref,
@@ -224,7 +224,7 @@ impl<const N: usize> CardsCombined<N> {
     }
 
     pub fn new(cards: [Card; N]) -> Option<Self> {
-        if cards.has_dup() {
+        if !cards.iter().all_unique() {
             None // Cannot have duplicate cards
         } else {
             Some(Self(cards))
@@ -337,7 +337,7 @@ impl Board {
             return None; // Invalid number of cards for a board
         }
 
-        if cards.has_dup() {
+        if !cards.iter().all_unique() {
             return None; // Cannot have duplicate cards
         }
 
