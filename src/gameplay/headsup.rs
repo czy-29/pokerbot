@@ -529,7 +529,7 @@ pub struct HandHistory {
 }
 
 impl HandHistory {
-    pub fn replay(&self) -> HandReplay {
+    pub fn replay(&self) -> HandReplay<'_> {
         HandReplay {
             events: self.events.iter(),
             hand_state: HandState::new(self.blind, self.button, self.init_stacks),
