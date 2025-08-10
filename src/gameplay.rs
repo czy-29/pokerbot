@@ -318,7 +318,7 @@ impl<const N: usize> CardsCombined<N> {
 }
 
 impl CardsCombined<7> {
-    pub fn get_hand_value(&self) -> HandValue {
+    pub fn hand_value(&self) -> HandValue {
         self.0
             .into_iter()
             .array_combinations::<5>()
@@ -326,7 +326,7 @@ impl CardsCombined<7> {
             .par_iter()
             .map(|cards| *cards)
             .map(|cards| CardsCombined(cards))
-            .map(HandValue::from)
+            .map(From::from)
             .max()
             .expect("At least one combination should exist")
     }
@@ -414,7 +414,7 @@ pub type Flop = CardsCombined<3>;
 pub type FullBoard = CardsCombined<5>;
 
 impl FullBoard {
-    pub fn to_showdown(&self, hole: Hole) -> CardsCombined<7> {
+    pub fn to_seven(&self, hole: Hole) -> CardsCombined<7> {
         let hole = hole.0;
         let board = self.0;
 
@@ -424,18 +424,16 @@ impl FullBoard {
     }
 
     pub fn hand_value(&self, hole: Hole) -> HandValue {
-        self.to_showdown(hole).get_hand_value()
+        self.to_seven(hole).hand_value()
     }
 
     pub fn who_wins(&self, h1: Hole, h2: Hole) -> (HandValue, Option<bool>) {
         let (v1, v2) = rayon::join(|| self.hand_value(h1), || self.hand_value(h2));
 
-        if v1 > v2 {
-            (v1, Some(true))
-        } else if v1 < v2 {
-            (v2, Some(false))
-        } else {
-            (v1, None)
+        match v1.cmp(&v2) {
+            Ordering::Greater => (v1, Some(true)),
+            Ordering::Less => (v2, Some(false)),
+            Ordering::Equal => (v1, None),
         }
     }
 }
