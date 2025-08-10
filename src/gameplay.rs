@@ -2,7 +2,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet},
     fmt::{self, Display, Formatter},
     ops::Deref,
     str::FromStr,
@@ -258,7 +258,7 @@ impl<const N: usize> CardsCombined<N> {
     }
 
     fn is_flush(&self) -> bool {
-        self.0.iter().map(|card| card.suit()).all_equal()
+        self.0.iter().map(Card::suit).all_equal()
     }
 
     fn to_sorted_values(&self) -> [Value; N] {
@@ -298,15 +298,9 @@ impl<const N: usize> CardsCombined<N> {
     }
 
     fn to_value_map(&self) -> ValueMap {
-        let mut freq_counter: HashMap<Value, usize> = HashMap::new();
-
-        for card in self.0 {
-            *freq_counter.entry(card.value()).or_insert(0) += 1;
-        }
-
         let mut value_map: BTreeMap<usize, BTreeSet<Value>> = BTreeMap::new();
 
-        for (value, count) in freq_counter {
+        for (value, count) in self.0.iter().map(Card::value).counts() {
             value_map
                 .entry(count)
                 .or_insert_with(BTreeSet::new)
