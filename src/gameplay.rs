@@ -413,6 +413,33 @@ pub type Hole = CardsCombined<2>;
 pub type Flop = CardsCombined<3>;
 pub type FullBoard = CardsCombined<5>;
 
+impl FullBoard {
+    pub fn to_showdown(&self, hole: Hole) -> CardsCombined<7> {
+        let hole = hole.0;
+        let board = self.0;
+
+        CardsCombined([
+            hole[0], hole[1], board[0], board[1], board[2], board[3], board[4],
+        ])
+    }
+
+    pub fn hand_value(&self, hole: Hole) -> HandValue {
+        self.to_showdown(hole).get_hand_value()
+    }
+
+    pub fn who_wins(&self, h1: Hole, h2: Hole) -> (HandValue, Option<bool>) {
+        let (v1, v2) = rayon::join(|| self.hand_value(h1), || self.hand_value(h2));
+
+        if v1 > v2 {
+            (v1, Some(true))
+        } else if v1 < v2 {
+            (v2, Some(false))
+        } else {
+            (v1, None)
+        }
+    }
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Board(BoardCards);
 
