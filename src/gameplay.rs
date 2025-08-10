@@ -430,6 +430,22 @@ impl FullBoard {
             Ordering::Equal => (v1, None),
         }
     }
+
+    pub fn is_nuts(&self) -> bool {
+        match HandValue::from(*self).0 {
+            SortedHandValue::RoyalFlush => true,
+            SortedHandValue::Quads([Value::Ace, Value::King]) => true,
+            SortedHandValue::Quads([_, Value::Ace]) => true,
+            SortedHandValue::Straight(Value::Ace) => self
+                .0
+                .iter()
+                .map(Card::suit)
+                .counts()
+                .values()
+                .all(|&c| c <= 2),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
