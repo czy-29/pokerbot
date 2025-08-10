@@ -395,6 +395,7 @@ impl<const N: usize> FromStr for CardsCombined<N> {
 
 pub type Hole = CardsCombined<2>;
 pub type Flop = CardsCombined<3>;
+pub type FullBoard = CardsCombined<5>;
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Board(BoardCards);
@@ -478,6 +479,16 @@ impl Board {
             } else {
                 Some(Self(BoardCards::River { flop, turn, river }))
             }
+        } else {
+            None
+        }
+    }
+
+    pub fn as_full_board(&self) -> Option<FullBoard> {
+        if let BoardCards::River { flop, turn, river } = self.0 {
+            Some(FullBoard::unchecked([
+                flop[0], flop[1], flop[2], turn, river,
+            ]))
         } else {
             None
         }
