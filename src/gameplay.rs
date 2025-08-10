@@ -1,5 +1,7 @@
 use itertools::Itertools;
 use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, BTreeSet, HashMap},
     fmt::{self, Display, Formatter},
     ops::Deref,
     str::FromStr,
@@ -82,6 +84,25 @@ impl Value {
             Self::Queen => 10,
             Self::King => 11,
             Self::Ace => 12,
+        }
+    }
+
+    fn from_u8(value: u8) -> Self {
+        match value {
+            0 => Self::Deuce,
+            1 => Self::Trey,
+            2 => Self::Four,
+            3 => Self::Five,
+            4 => Self::Six,
+            5 => Self::Seven,
+            6 => Self::Eight,
+            7 => Self::Nine,
+            8 => Self::Ten,
+            9 => Self::Jack,
+            10 => Self::Queen,
+            11 => Self::King,
+            12 => Self::Ace,
+            _ => unreachable!(),
         }
     }
 }
@@ -233,6 +254,65 @@ impl<const N: usize> CardsCombined<N> {
 
     pub fn display(self, mode: DisplayMode) -> CardsDisplay<N> {
         CardsDisplay { cards: self, mode }
+    }
+
+    fn is_flush(&self) -> bool {
+        self.0.iter().map(|card| card.suit()).all_equal()
+    }
+
+    fn to_sorted_values(&self) -> [Value; N] {
+        let mut values = self.0.map(|card| card.value());
+        values.sort_unstable_by(|a, b| b.cmp(a));
+        values
+    }
+
+    fn check_straight(mut u8s: [u8; N]) -> Option<Value> {
+        u8s.sort_unstable();
+
+        if u8s.windows(2).all(|w| w[1] == w[0] + 1) {
+            Some(Value::from_u8(u8s[N - 1] - 1))
+        } else {
+            None
+        }
+    }
+
+    fn is_straight(&self) -> Option<Value> {
+        const ACE: u8 = 13;
+        let mut u8s = self.0.map(|card| card.value().as_u8() + 1);
+        let check_straight = Self::check_straight(u8s);
+
+        if check_straight.is_none() && u8s.contains(&ACE) {
+            // Check for wheel (A-2-3-4-5)
+            for u in &mut u8s {
+                if *u == ACE {
+                    *u = 0;
+                    break;
+                }
+            }
+
+            return Self::check_straight(u8s);
+        }
+
+        check_straight
+    }
+
+    fn to_value_map(&self) -> ValueMap {
+        let mut freq_counter: HashMap<Value, usize> = HashMap::new();
+
+        for card in self.0 {
+            *freq_counter.entry(card.value()).or_insert(0) += 1;
+        }
+
+        let mut value_map: BTreeMap<usize, BTreeSet<Value>> = BTreeMap::new();
+
+        for (value, count) in freq_counter {
+            value_map
+                .entry(count)
+                .or_insert_with(BTreeSet::new)
+                .insert(value);
+        }
+
+        ValueMap(value_map)
     }
 }
 
@@ -482,6 +562,128 @@ pub enum BoardCards {
         turn: Card,
         river: Card,
     },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+struct ValueMap(BTreeMap<usize, BTreeSet<Value>>);
+
+impl ValueMap {
+    fn to_freq_pairs(&self) -> Vec<(usize, usize)> {
+        self.0
+            .iter()
+            .rev()
+            .map(|(&key, values)| (key, values.len()))
+            .collect()
+    }
+
+    fn to_sorted_values(&self) -> Vec<Value> {
+        self.0
+            .values()
+            .rev()
+            .flat_map(|v| v.iter().rev())
+            .copied()
+            .collect()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct HandValue(SortedHandValue);
+
+impl PartialOrd for HandValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for HandValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        use SortedHandValue::*;
+        match (self.0, other.0) {
+            (RoyalFlush, RoyalFlush) => Ordering::Equal,
+            (RoyalFlush, _) => Ordering::Greater,
+            (_, RoyalFlush) => Ordering::Less,
+            (StraightFlush(v1), StraightFlush(v2)) => v1.cmp(&v2),
+            (StraightFlush(_), _) => Ordering::Greater,
+            (_, StraightFlush(_)) => Ordering::Less,
+            (Quads(v1), Quads(v2)) => v1.cmp(&v2),
+            (Quads(_), _) => Ordering::Greater,
+            (_, Quads(_)) => Ordering::Less,
+            (FullHouse(v1), FullHouse(v2)) => v1.cmp(&v2),
+            (FullHouse(_), _) => Ordering::Greater,
+            (_, FullHouse(_)) => Ordering::Less,
+            (Flush(v1), Flush(v2)) => v1.cmp(&v2),
+            (Flush(_), _) => Ordering::Greater,
+            (_, Flush(_)) => Ordering::Less,
+            (Straight(v1), Straight(v2)) => v1.cmp(&v2),
+            (Straight(_), _) => Ordering::Greater,
+            (_, Straight(_)) => Ordering::Less,
+            (Trips(v1), Trips(v2)) => v1.cmp(&v2),
+            (Trips(_), _) => Ordering::Greater,
+            (_, Trips(_)) => Ordering::Less,
+            (TwoPair(v1), TwoPair(v2)) => v1.cmp(&v2),
+            (TwoPair(_), _) => Ordering::Greater,
+            (_, TwoPair(_)) => Ordering::Less,
+            (OnePair(v1), OnePair(v2)) => v1.cmp(&v2),
+            (OnePair(_), _) => Ordering::Greater,
+            (_, OnePair(_)) => Ordering::Less,
+            (HighCard(v1), HighCard(v2)) => v1.cmp(&v2),
+        }
+    }
+}
+
+impl From<CardsCombined<5>> for HandValue {
+    fn from(cards: CardsCombined<5>) -> Self {
+        let is_flush = cards.is_flush();
+        let is_straight = cards.is_straight();
+
+        if let Some(largest_value) = is_straight {
+            if is_flush {
+                if largest_value == Value::Ace {
+                    Self(SortedHandValue::RoyalFlush)
+                } else {
+                    Self(SortedHandValue::StraightFlush(largest_value))
+                }
+            } else {
+                Self(SortedHandValue::Straight(largest_value))
+            }
+        } else if is_flush {
+            Self(SortedHandValue::Flush(cards.to_sorted_values()))
+        } else {
+            let value_map = cards.to_value_map();
+            let sorted_values = value_map.to_sorted_values();
+
+            // These unwrapping should not fail with valid poker hands
+            match value_map.to_freq_pairs().as_slice() {
+                [(4, 1), (1, 1)] => Self(SortedHandValue::Quads(sorted_values.try_into().unwrap())),
+                [(3, 1), (2, 1)] => Self(SortedHandValue::FullHouse(
+                    sorted_values.try_into().unwrap(),
+                )),
+                [(3, 1), (1, 2)] => Self(SortedHandValue::Trips(sorted_values.try_into().unwrap())),
+                [(2, 2), (1, 1)] => {
+                    Self(SortedHandValue::TwoPair(sorted_values.try_into().unwrap()))
+                }
+                [(2, 1), (1, 3)] => {
+                    Self(SortedHandValue::OnePair(sorted_values.try_into().unwrap()))
+                }
+                [(1, 5)] => Self(SortedHandValue::HighCard(sorted_values.try_into().unwrap())),
+                _ => unreachable!(), // Should not happen with valid poker hands
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+enum SortedHandValue {
+    RoyalFlush,
+    StraightFlush(Value),
+    Quads([Value; 2]),
+    FullHouse([Value; 2]),
+    Flush([Value; 5]),
+    Straight(Value),
+    Trips([Value; 3]),
+    TwoPair([Value; 3]),
+    OnePair([Value; 4]),
+    HighCard([Value; 5]),
 }
 
 pub mod display {
