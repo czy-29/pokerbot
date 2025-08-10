@@ -648,48 +648,14 @@ impl ValueMap {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct HandValue(SortedHandValue);
 
-impl PartialOrd for HandValue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
+impl Deref for HandValue {
+    type Target = SortedHandValue;
 
-impl Ord for HandValue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        use SortedHandValue::*;
-        match (self.0, other.0) {
-            (RoyalFlush, RoyalFlush) => Ordering::Equal,
-            (RoyalFlush, _) => Ordering::Greater,
-            (_, RoyalFlush) => Ordering::Less,
-            (StraightFlush(v1), StraightFlush(v2)) => v1.cmp(&v2),
-            (StraightFlush(_), _) => Ordering::Greater,
-            (_, StraightFlush(_)) => Ordering::Less,
-            (Quads(v1), Quads(v2)) => v1.cmp(&v2),
-            (Quads(_), _) => Ordering::Greater,
-            (_, Quads(_)) => Ordering::Less,
-            (FullHouse(v1), FullHouse(v2)) => v1.cmp(&v2),
-            (FullHouse(_), _) => Ordering::Greater,
-            (_, FullHouse(_)) => Ordering::Less,
-            (Flush(v1), Flush(v2)) => v1.cmp(&v2),
-            (Flush(_), _) => Ordering::Greater,
-            (_, Flush(_)) => Ordering::Less,
-            (Straight(v1), Straight(v2)) => v1.cmp(&v2),
-            (Straight(_), _) => Ordering::Greater,
-            (_, Straight(_)) => Ordering::Less,
-            (Trips(v1), Trips(v2)) => v1.cmp(&v2),
-            (Trips(_), _) => Ordering::Greater,
-            (_, Trips(_)) => Ordering::Less,
-            (TwoPair(v1), TwoPair(v2)) => v1.cmp(&v2),
-            (TwoPair(_), _) => Ordering::Greater,
-            (_, TwoPair(_)) => Ordering::Less,
-            (OnePair(v1), OnePair(v2)) => v1.cmp(&v2),
-            (OnePair(_), _) => Ordering::Greater,
-            (_, OnePair(_)) => Ordering::Less,
-            (HighCard(v1), HighCard(v2)) => v1.cmp(&v2),
-        }
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -734,8 +700,9 @@ impl From<CardsCombined<5>> for HandValue {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-enum SortedHandValue {
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum SortedHandValue {
+    #[default]
     RoyalFlush,
     StraightFlush(Value),
     Quads([Value; 2]),
@@ -746,6 +713,48 @@ enum SortedHandValue {
     TwoPair([Value; 3]),
     OnePair([Value; 4]),
     HighCard([Value; 5]),
+}
+
+impl PartialOrd for SortedHandValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SortedHandValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        use SortedHandValue::*;
+        match (self, other) {
+            (RoyalFlush, RoyalFlush) => Ordering::Equal,
+            (RoyalFlush, _) => Ordering::Greater,
+            (_, RoyalFlush) => Ordering::Less,
+            (StraightFlush(v1), StraightFlush(v2)) => v1.cmp(&v2),
+            (StraightFlush(_), _) => Ordering::Greater,
+            (_, StraightFlush(_)) => Ordering::Less,
+            (Quads(v1), Quads(v2)) => v1.cmp(&v2),
+            (Quads(_), _) => Ordering::Greater,
+            (_, Quads(_)) => Ordering::Less,
+            (FullHouse(v1), FullHouse(v2)) => v1.cmp(&v2),
+            (FullHouse(_), _) => Ordering::Greater,
+            (_, FullHouse(_)) => Ordering::Less,
+            (Flush(v1), Flush(v2)) => v1.cmp(&v2),
+            (Flush(_), _) => Ordering::Greater,
+            (_, Flush(_)) => Ordering::Less,
+            (Straight(v1), Straight(v2)) => v1.cmp(&v2),
+            (Straight(_), _) => Ordering::Greater,
+            (_, Straight(_)) => Ordering::Less,
+            (Trips(v1), Trips(v2)) => v1.cmp(&v2),
+            (Trips(_), _) => Ordering::Greater,
+            (_, Trips(_)) => Ordering::Less,
+            (TwoPair(v1), TwoPair(v2)) => v1.cmp(&v2),
+            (TwoPair(_), _) => Ordering::Greater,
+            (_, TwoPair(_)) => Ordering::Less,
+            (OnePair(v1), OnePair(v2)) => v1.cmp(&v2),
+            (OnePair(_), _) => Ordering::Greater,
+            (_, OnePair(_)) => Ordering::Less,
+            (HighCard(v1), HighCard(v2)) => v1.cmp(&v2),
+        }
+    }
 }
 
 pub mod display {
