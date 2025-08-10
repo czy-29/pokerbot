@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -313,6 +314,21 @@ impl<const N: usize> CardsCombined<N> {
         }
 
         ValueMap(value_map)
+    }
+}
+
+impl CardsCombined<7> {
+    pub fn get_hand_value(&self) -> HandValue {
+        self.0
+            .into_iter()
+            .array_combinations::<5>()
+            .collect::<Vec<_>>()
+            .par_iter()
+            .map(|cards| *cards)
+            .map(|cards| CardsCombined(cards))
+            .map(HandValue::from)
+            .max()
+            .expect("At least one combination should exist")
     }
 }
 
