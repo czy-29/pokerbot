@@ -626,6 +626,26 @@ pub enum BoardCards {
     },
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum FindNuts {
+    PocketPair(Value),
+    OneValue(Value),
+    TwoValues([Value; 2]),
+    OneHole(Hole),
+    TwoHoles([Hole; 2]),
+    ThreeHoles([Hole; 3]),
+    ValuePlusTwo(Value, [Value; 2]),
+    CardPlusAny(Card),
+    CardPlusAnySuited(Card),
+    AnyTwo,
+}
+
+impl Default for FindNuts {
+    fn default() -> Self {
+        Self::PocketPair(Value::Ace)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 struct ValueMap(BTreeMap<usize, BTreeSet<Value>>);
 
