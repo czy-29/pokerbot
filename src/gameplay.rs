@@ -570,10 +570,10 @@ impl Board {
         BoardDisplay { board: self, mode }
     }
 
-    fn _flush_values(&self) -> Option<(Suit, BTreeSet<u8>)> {
-        let (suit, cards) = self
-            .to_vec()
-            .into_iter()
+    fn _flush_values(cards: &[Card]) -> Option<(Suit, BTreeSet<u8>)> {
+        let (suit, cards) = cards
+            .iter()
+            .copied()
             .into_group_map_by(Card::suit)
             .into_iter()
             .find(|(_, cards)| cards.len() >= 3)?;
