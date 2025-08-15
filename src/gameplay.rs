@@ -564,6 +564,16 @@ impl Board {
     pub fn display(self, mode: DisplayMode) -> BoardDisplay {
         BoardDisplay { board: self, mode }
     }
+
+    fn _flush_values(&self) -> Option<(Suit, Vec<Value>)> {
+        let (suit, cards) = self
+            .to_vec()
+            .into_iter()
+            .into_group_map_by(Card::suit)
+            .into_iter()
+            .find(|(_, cards)| cards.len() >= 3)?;
+        Some((suit, cards.iter().map(Card::value).collect()))
+    }
 }
 
 impl FromStr for Board {
