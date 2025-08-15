@@ -570,14 +570,24 @@ impl Board {
         BoardDisplay { board: self, mode }
     }
 
-    fn _flush_values(&self) -> Option<(Suit, Vec<Value>)> {
+    fn _flush_values(&self) -> Option<(Suit, BTreeSet<u8>)> {
         let (suit, cards) = self
             .to_vec()
             .into_iter()
             .into_group_map_by(Card::suit)
             .into_iter()
             .find(|(_, cards)| cards.len() >= 3)?;
-        Some((suit, cards.iter().map(Card::value).collect()))
+        let mut flush_values: BTreeSet<u8> = cards
+            .iter()
+            .map(Card::value)
+            .map(Value::as_u8_straight)
+            .collect();
+
+        if flush_values.contains(&Value::ACE_HIGH) {
+            flush_values.insert(0); // For wheel (A-2-3-4-5)
+        }
+
+        Some((suit, flush_values))
     }
 }
 
