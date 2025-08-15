@@ -90,12 +90,8 @@ impl Value {
         }
     }
 
-    fn as_u8_straight(self, ace_low: bool) -> u8 {
-        if ace_low && self == Self::Ace {
-            0
-        } else {
-            self.as_u8() + 1
-        }
+    fn as_u8_straight(self) -> u8 {
+        self.as_u8() + 1
     }
 
     fn from_u8_straight(value: u8) -> Self {
@@ -288,7 +284,7 @@ impl<const N: usize> CardsCombined<N> {
     }
 
     fn is_straight(&self) -> Option<Value> {
-        let mut u8s = self.0.map(|card| card.value().as_u8_straight(false));
+        let mut u8s = self.0.map(|card| card.value().as_u8_straight());
         let check_straight = Self::check_straight(u8s);
 
         if check_straight.is_none() && u8s.contains(&Value::ACE_HIGH) {
