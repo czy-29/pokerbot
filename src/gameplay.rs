@@ -88,21 +88,29 @@ impl Value {
         }
     }
 
-    fn from_u8(value: u8) -> Self {
+    fn as_u8_straight(self, ace_low: bool) -> u8 {
+        if ace_low && self == Self::Ace {
+            0
+        } else {
+            self.as_u8() + 1
+        }
+    }
+
+    fn from_u8_straight(value: u8) -> Self {
         match value {
-            0 => Self::Deuce,
-            1 => Self::Trey,
-            2 => Self::Four,
-            3 => Self::Five,
-            4 => Self::Six,
-            5 => Self::Seven,
-            6 => Self::Eight,
-            7 => Self::Nine,
-            8 => Self::Ten,
-            9 => Self::Jack,
-            10 => Self::Queen,
-            11 => Self::King,
-            12 => Self::Ace,
+            0 | 13 => Self::Ace,
+            1 => Self::Deuce,
+            2 => Self::Trey,
+            3 => Self::Four,
+            4 => Self::Five,
+            5 => Self::Six,
+            6 => Self::Seven,
+            7 => Self::Eight,
+            8 => Self::Nine,
+            9 => Self::Ten,
+            10 => Self::Jack,
+            11 => Self::Queen,
+            12 => Self::King,
             _ => unreachable!(),
         }
     }
@@ -271,7 +279,7 @@ impl<const N: usize> CardsCombined<N> {
         u8s.sort_unstable();
 
         if u8s.windows(2).all(|w| w[1] == w[0] + 1) {
-            Some(Value::from_u8(u8s[N - 1] - 1))
+            Some(Value::from_u8_straight(u8s[N - 1]))
         } else {
             None
         }
@@ -279,7 +287,7 @@ impl<const N: usize> CardsCombined<N> {
 
     fn is_straight(&self) -> Option<Value> {
         const ACE: u8 = 13;
-        let mut u8s = self.0.map(|card| card.value().as_u8() + 1);
+        let mut u8s = self.0.map(|card| card.value().as_u8_straight(false));
         let check_straight = Self::check_straight(u8s);
 
         if check_straight.is_none() && u8s.contains(&ACE) {
