@@ -570,24 +570,25 @@ impl Board {
         BoardDisplay { board: self, mode }
     }
 
-    fn _flush_values(cards: &[Card]) -> Option<(Suit, BTreeSet<u8>)> {
-        let (suit, cards) = cards
+    fn _flush_cards(cards: &[Card]) -> Option<(Suit, Vec<Card>)> {
+        cards
             .iter()
             .copied()
             .into_group_map_by(Card::suit)
             .into_iter()
-            .find(|(_, cards)| cards.len() >= 3)?;
-        let mut flush_values: BTreeSet<u8> = cards
+            .find(|(_, cards)| cards.len() >= 3)
+    }
+
+    fn _straight_scan(cards: &[Card], _only_first: bool) {
+        let mut values: BTreeSet<u8> = cards
             .iter()
             .map(Card::value)
             .map(Value::as_u8_straight)
             .collect();
 
-        if flush_values.contains(&Value::ACE_HIGH) {
-            flush_values.insert(0); // For wheel (A-2-3-4-5)
+        if values.contains(&Value::ACE_HIGH) {
+            values.insert(0); // For wheel (A-2-3-4-5)
         }
-
-        Some((suit, flush_values))
     }
 }
 
