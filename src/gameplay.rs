@@ -590,6 +590,10 @@ impl Board {
             values.insert(0); // For wheel (A-2-3-4-5)
         }
     }
+
+    fn _paired(cards: &[Card]) -> bool {
+        !cards.iter().map(Card::value).all_unique()
+    }
 }
 
 impl FromStr for Board {
