@@ -70,6 +70,8 @@ impl FromStr for Value {
 }
 
 impl Value {
+    const ACE_HIGH: u8 = 13;
+
     fn as_u8(self) -> u8 {
         match self {
             Self::Deuce => 0,
@@ -286,14 +288,13 @@ impl<const N: usize> CardsCombined<N> {
     }
 
     fn is_straight(&self) -> Option<Value> {
-        const ACE: u8 = 13;
         let mut u8s = self.0.map(|card| card.value().as_u8_straight(false));
         let check_straight = Self::check_straight(u8s);
 
-        if check_straight.is_none() && u8s.contains(&ACE) {
+        if check_straight.is_none() && u8s.contains(&Value::ACE_HIGH) {
             // Check for wheel (A-2-3-4-5)
             for u in &mut u8s {
-                if *u == ACE {
+                if *u == Value::ACE_HIGH {
                     *u = 0;
                     break;
                 }
