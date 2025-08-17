@@ -1,3 +1,4 @@
+use indexmap::IndexSet;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
@@ -579,7 +580,7 @@ impl Board {
             .find(|(_, cards)| cards.len() >= 3)
     }
 
-    fn _straight_scan(cards: &[Card], _only_first: bool) {
+    fn _straight_scan(cards: &[Card], only_first: bool) -> (Value, IndexSet<StraightSolve>) {
         let mut values: BTreeSet<u8> = cards
             .iter()
             .map(Card::value)
@@ -589,6 +590,55 @@ impl Board {
         if values.contains(&Value::ACE_HIGH) {
             values.insert(0); // For wheel (A-2-3-4-5)
         }
+
+        let range_start = *values
+            .first()
+            .expect("Input cards should not be empty")
+            .max(&2)
+            - 2;
+        let range_end =
+            Value::ACE_HIGH.min(values.last().expect("Input cards should not be empty") + 2) - 4;
+        let remain_set: BTreeSet<u8> = (0..=13)
+            .collect::<BTreeSet<u8>>()
+            .difference(&values)
+            .copied()
+            .collect();
+        let remain_high = remain_set
+            .last()
+            .copied()
+            .map(Value::from_u8_straight)
+            .expect("Input cards should at most contain 12 cards");
+        let mut solves = IndexSet::new();
+
+        for start in (range_start..=range_end).rev() {
+            let mut solve: Vec<u8> = Vec::with_capacity(5);
+            solve.extend(remain_set.intersection(&(start..start + 5).collect()));
+
+            if solve.len() <= 2 {
+                match solve.len() {
+                    0 => {
+                        solves.insert(StraightSolve::None);
+                        return (remain_high, solves);
+                    }
+                    1 => {
+                        solves.insert(StraightSolve::One(Value::from_u8_straight(solve[0])));
+                    }
+                    2 => {
+                        let low = Value::from_u8_straight(solve[0]);
+                        let high = Value::from_u8_straight(solve[1]);
+
+                        solves.insert(StraightSolve::Two([high, low]));
+                    }
+                    _ => unreachable!(), // Should not happen with valid poker hands
+                }
+
+                if only_first {
+                    return (remain_high, solves);
+                }
+            }
+        }
+
+        (remain_high, solves)
     }
 
     fn _paired(cards: &[Card]) -> bool {
@@ -654,6 +704,14 @@ pub enum BoardCards {
         turn: Card,
         river: Card,
     },
+}
+
+#[allow(dead_code)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+enum StraightSolve {
+    None,
+    One(Value),
+    Two([Value; 2]),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
