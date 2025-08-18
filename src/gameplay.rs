@@ -760,6 +760,26 @@ impl Default for FindNuts {
     }
 }
 
+impl PartialEq<Hole> for FindNuts {
+    fn eq(&self, other: &Hole) -> bool {
+        match *self {
+            Self::PocketPair(v) => other.is_pocket(v),
+            Self::OneValue(v) => other.contains_value(v),
+            Self::TwoValues(v) => other.contains_value(v[0]) && other.contains_value(v[1]),
+            Self::OneHole(hole) => hole == *other,
+            Self::TwoHoles(holes) => holes.contains(other),
+            Self::ThreeHoles(holes) => holes.contains(other),
+            Self::ValuePlusTwo(v, v2) => {
+                other.contains_value(v)
+                    && (other.contains_value(v2[0]) || other.contains_value(v2[1]))
+            }
+            Self::CardPlusAny(card) => other.contains_card(card),
+            Self::CardPlusAnySuited(card) => other.contains_card(card) && other.is_suited(),
+            Self::AnyTwo => true,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 struct ValueMap(BTreeMap<usize, BTreeSet<Value>>);
 
