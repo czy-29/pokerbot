@@ -260,6 +260,18 @@ impl<const N: usize> CardsCombined<N> {
         }
     }
 
+    pub fn contains_value(&self, value: Value) -> bool {
+        self.0.iter().map(Card::value).contains(&value)
+    }
+
+    pub fn contains_suit(&self, suit: Suit) -> bool {
+        self.0.iter().map(Card::suit).contains(&suit)
+    }
+
+    pub fn contains_card(&self, card: Card) -> bool {
+        self.0.contains(&card)
+    }
+
     pub fn display(self, mode: DisplayMode) -> CardsDisplay<N> {
         CardsDisplay { cards: self, mode }
     }
