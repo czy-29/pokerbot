@@ -425,6 +425,20 @@ pub type Hole = CardsCombined<2>;
 pub type Flop = CardsCombined<3>;
 pub type FullBoard = CardsCombined<5>;
 
+impl Hole {
+    pub fn is_pocket_pair(&self) -> bool {
+        self.0.iter().map(Card::value).all_equal()
+    }
+
+    pub fn is_pocket(&self, value: Value) -> bool {
+        self.0.iter().map(Card::value).all(|v| v == value)
+    }
+
+    pub fn is_suited(&self) -> bool {
+        self.is_flush()
+    }
+}
+
 impl FullBoard {
     pub fn to_seven(&self, hole: Hole) -> CardsCombined<7> {
         let hole = hole.0;
