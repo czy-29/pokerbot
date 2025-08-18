@@ -597,6 +597,14 @@ impl Board {
         BoardDisplay { board: self, mode }
     }
 
+    pub fn find_nuts(&self) -> FindNuts {
+        todo!()
+    }
+
+    pub fn is_nuts(&self, hole: Hole) -> bool {
+        self.find_nuts() == hole
+    }
+
     fn _flush_cards(cards: &[Card]) -> Option<(Suit, Vec<Card>)> {
         cards
             .iter()
