@@ -592,6 +592,10 @@ impl Board {
         BoardDisplay { board: self, mode }
     }
 
+    pub fn is_nuts(&self, hole: Hole) -> bool {
+        self.find_nuts() == hole
+    }
+
     pub fn find_nuts(&self) -> FindNuts {
         let cards = self.to_vec();
         let board_paired = Self::paired(&cards);
@@ -702,10 +706,6 @@ impl Board {
                 }
             }
         }
-    }
-
-    pub fn is_nuts(&self, hole: Hole) -> bool {
-        self.find_nuts() == hole
     }
 
     fn flush_cards(cards: &[Card]) -> Option<(Suit, Vec<Card>)> {
