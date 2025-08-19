@@ -786,7 +786,7 @@ impl Board {
         let value_map: ValueMap = cards.into();
         let sorted_values = value_map.to_sorted_values();
 
-        match value_map.to_freq_pairs().as_slice() {
+        match value_map.to_count_pairs().as_slice() {
             [(3, 1)] | [(3, 1), (1, _)] => FindNuts::OneValue(sorted_values[0]),
             [(2, 1), (1, _)] => {
                 let pair = sorted_values[0];
@@ -988,7 +988,7 @@ impl From<&[Card]> for ValueMap {
 }
 
 impl ValueMap {
-    fn to_freq_pairs(&self) -> Vec<(usize, usize)> {
+    fn to_count_pairs(&self) -> Vec<(usize, usize)> {
         self.0
             .iter()
             .rev()
@@ -1039,7 +1039,7 @@ impl From<CardsCombined<5>> for HandValue {
             let sorted_values = value_map.to_sorted_values();
 
             // These unwrapping should not fail with valid poker hands
-            match value_map.to_freq_pairs().as_slice() {
+            match value_map.to_count_pairs().as_slice() {
                 [(4, 1), (1, 1)] => Self(SortedHandValue::Quads(sorted_values.try_into().unwrap())),
                 [(3, 1), (2, 1)] => Self(SortedHandValue::FullHouse(
                     sorted_values.try_into().unwrap(),
