@@ -744,10 +744,10 @@ pub enum FindNuts {
     PocketPair(Value),
     OneValue(Value),
     TwoValues([Value; 2]),
+    PocketOrTwo(Value, [Value; 2]),
     OneHole(Hole),
     TwoHoles([Hole; 2]),
     ThreeHoles([Hole; 3]),
-    ValuePlusTwo(Value, [Value; 2]),
     CardPlusAny(Card),
     CardPlusAnySuited(Card),
     AnyTwo,
@@ -765,13 +765,10 @@ impl PartialEq<Hole> for FindNuts {
             Self::PocketPair(v) => other.is_pocket(v),
             Self::OneValue(v) => other.contains_value(v),
             Self::TwoValues(v) => other.is_of_values(v),
+            Self::PocketOrTwo(v, v2) => other.is_pocket(v) || other.is_of_values(v2),
             Self::OneHole(hole) => hole == *other,
             Self::TwoHoles(holes) => holes.contains(other),
             Self::ThreeHoles(holes) => holes.contains(other),
-            Self::ValuePlusTwo(v, v2) => {
-                other.contains_value(v)
-                    && (other.contains_value(v2[0]) || other.contains_value(v2[1]))
-            }
             Self::CardPlusAny(card) => other.contains_card(card),
             Self::CardPlusAnySuited(card) => other.contains_card(card) && other.is_suited(),
             Self::AnyTwo => true,
