@@ -424,6 +424,10 @@ impl Hole {
     pub fn is_suited(&self) -> bool {
         self.is_flush()
     }
+
+    fn is_of_values(&self, values: [Value; 2]) -> bool {
+        self.contains_value(values[0]) && self.contains_value(values[1])
+    }
 }
 
 impl FullBoard {
@@ -760,7 +764,7 @@ impl PartialEq<Hole> for FindNuts {
         match *self {
             Self::PocketPair(v) => other.is_pocket(v),
             Self::OneValue(v) => other.contains_value(v),
-            Self::TwoValues(v) => other.contains_value(v[0]) && other.contains_value(v[1]),
+            Self::TwoValues(v) => other.is_of_values(v),
             Self::OneHole(hole) => hole == *other,
             Self::TwoHoles(holes) => holes.contains(other),
             Self::ThreeHoles(holes) => holes.contains(other),
