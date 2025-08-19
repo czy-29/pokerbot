@@ -669,6 +669,78 @@ impl Board {
     fn _paired(cards: &[Card]) -> bool {
         !cards.iter().map(Card::value).all_unique()
     }
+
+    fn _quads_full_house(cards: &[Card]) -> FindNuts {
+        let value_map: ValueMap = cards.into();
+        let sorted_values = value_map.to_sorted_values();
+
+        match value_map.to_freq_pairs().as_slice() {
+            [(3, 1)] | [(3, 1), (1, _)] => FindNuts::OneValue(sorted_values[0]),
+            [(2, 1), (1, _)] => {
+                let pair = sorted_values[0];
+                let single_high = sorted_values[1];
+
+                if pair > single_high {
+                    FindNuts::PocketOrTwo(pair, [pair, single_high])
+                } else {
+                    FindNuts::PocketPair(pair)
+                }
+            }
+            [(4, 1)] => {
+                if sorted_values[0] == Value::Ace {
+                    FindNuts::OneValue(Value::King)
+                } else {
+                    FindNuts::OneValue(Value::Ace)
+                }
+            }
+            [(2, 2)] => {
+                let high = sorted_values[0];
+                let low = sorted_values[1];
+
+                FindNuts::PocketOrTwo(high, [high, low])
+            }
+            [(4, 1), (1, 1)] => {
+                let quad = sorted_values[0];
+                let kicker = sorted_values[1];
+
+                if quad == Value::Ace {
+                    if kicker == Value::King {
+                        FindNuts::AnyTwo
+                    } else {
+                        FindNuts::OneValue(Value::King)
+                    }
+                } else {
+                    if kicker == Value::Ace {
+                        FindNuts::AnyTwo
+                    } else {
+                        FindNuts::OneValue(Value::Ace)
+                    }
+                }
+            }
+            [(3, 1), (2, 1)] => {
+                let trip = sorted_values[0];
+                let pair = sorted_values[1];
+
+                if pair > trip {
+                    FindNuts::PocketOrTwo(pair, [pair, trip])
+                } else {
+                    FindNuts::OneValue(trip)
+                }
+            }
+            [(2, 2), (1, 1)] => {
+                let pair_high = sorted_values[0];
+                let pair_low = sorted_values[1];
+                let single = sorted_values[2];
+
+                if pair_low > single {
+                    FindNuts::PocketOrTwo(pair_high, [pair_high, pair_low])
+                } else {
+                    FindNuts::PocketPair(pair_high)
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl FromStr for Board {
