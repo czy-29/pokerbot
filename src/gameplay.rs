@@ -314,19 +314,6 @@ impl<const N: usize> CardsCombined<N> {
 
         check_straight
     }
-
-    fn to_value_map(&self) -> ValueMap {
-        let mut value_map: BTreeMap<usize, BTreeSet<Value>> = BTreeMap::new();
-
-        for (value, count) in self.0.iter().map(Card::value).counts() {
-            value_map
-                .entry(count)
-                .or_insert_with(BTreeSet::new)
-                .insert(value);
-        }
-
-        ValueMap(value_map)
-    }
 }
 
 impl CardsCombined<7> {
@@ -791,6 +778,21 @@ impl PartialEq<Hole> for FindNuts {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 struct ValueMap(BTreeMap<usize, BTreeSet<Value>>);
 
+impl From<&[Card]> for ValueMap {
+    fn from(cards: &[Card]) -> Self {
+        let mut value_map: BTreeMap<usize, BTreeSet<Value>> = BTreeMap::new();
+
+        for (value, count) in cards.iter().map(Card::value).counts() {
+            value_map
+                .entry(count)
+                .or_insert_with(BTreeSet::new)
+                .insert(value);
+        }
+
+        Self(value_map)
+    }
+}
+
 impl ValueMap {
     fn to_freq_pairs(&self) -> Vec<(usize, usize)> {
         self.0
@@ -839,7 +841,7 @@ impl From<CardsCombined<5>> for HandValue {
         } else if is_flush {
             Self(SortedHandValue::Flush(cards.to_sorted_values()))
         } else {
-            let value_map = cards.to_value_map();
+            let value_map: ValueMap = cards.as_slice().into();
             let sorted_values = value_map.to_sorted_values();
 
             // These unwrapping should not fail with valid poker hands
