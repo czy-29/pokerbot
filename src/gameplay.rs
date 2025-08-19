@@ -916,23 +916,6 @@ pub enum BoardCards {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-enum StraightSolve {
-    None,
-    One(Value),
-    Two([Value; 2]),
-}
-
-impl StraightSolve {
-    fn last(&self) -> Option<Value> {
-        match self {
-            Self::None => None,
-            Self::One(value) => Some(*value),
-            Self::Two(values) => Some(values[1]),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum FindNuts {
     PocketPair(Value),
     OneValue(Value),
@@ -1003,6 +986,23 @@ impl ValueMap {
             .flat_map(|v| v.iter().rev())
             .copied()
             .collect()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+enum StraightSolve {
+    None,
+    One(Value),
+    Two([Value; 2]),
+}
+
+impl StraightSolve {
+    fn last(&self) -> Option<Value> {
+        match self {
+            Self::None => None,
+            Self::One(value) => Some(*value),
+            Self::Two(values) => Some(values[1]),
+        }
     }
 }
 
