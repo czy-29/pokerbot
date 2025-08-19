@@ -428,6 +428,10 @@ impl Hole {
     fn is_of_values(&self, values: [Value; 2]) -> bool {
         self.contains_value(values[0]) && self.contains_value(values[1])
     }
+
+    fn from_values_suited(values: [Value; 2], suit: Suit) -> Self {
+        Self([Card(values[0], suit), Card(values[1], suit)])
+    }
 }
 
 impl FullBoard {
@@ -589,14 +593,122 @@ impl Board {
     }
 
     pub fn find_nuts(&self) -> FindNuts {
-        todo!()
+        let cards = self.to_vec();
+        let board_paired = Self::paired(&cards);
+
+        if let Some((suit, cards)) = Self::flush_cards(&cards) {
+            let cards_len = cards.len();
+            let (nuts_high_value, sf_solves) = Self::straight_scan(&cards, false);
+            let nuts_high_card = Card(nuts_high_value, suit);
+            let mut sf_solves = sf_solves.into_iter();
+
+            match sf_solves.next() {
+                None => {
+                    if board_paired {
+                        Self::quads_full_house(&cards)
+                    } else if cards_len == 3 {
+                        FindNuts::CardPlusAnySuited(nuts_high_card)
+                    } else {
+                        FindNuts::CardPlusAny(nuts_high_card)
+                    }
+                }
+                Some(StraightSolve::None) => FindNuts::AnyTwo,
+                Some(StraightSolve::One(value)) => FindNuts::CardPlusAny(Card(value, suit)),
+                Some(StraightSolve::Two(sf0)) => {
+                    let sf0_hole = Hole::from_values_suited(sf0, suit);
+
+                    match sf_solves.next() {
+                        None => {
+                            if board_paired {
+                                FindNuts::OneHole(sf0_hole)
+                            } else if sf0[0] == nuts_high_value {
+                                if cards_len == 3 {
+                                    FindNuts::CardPlusAnySuited(nuts_high_card)
+                                } else {
+                                    FindNuts::CardPlusAny(nuts_high_card)
+                                }
+                            } else {
+                                FindNuts::ThreeHoles([
+                                    sf0_hole,
+                                    Hole::unchecked([nuts_high_card, sf0_hole[0]]),
+                                    Hole::unchecked([nuts_high_card, sf0_hole[1]]),
+                                ])
+                            }
+                        }
+                        Some(StraightSolve::None) => unreachable!(), // Should not happen
+                        Some(StraightSolve::One(value)) => FindNuts::CardPlusAny(Card(value, suit)),
+                        Some(StraightSolve::Two(sf1)) => {
+                            let sf1_hole = Hole::from_values_suited(sf1, suit);
+                            let ace = Card(Value::Ace, suit);
+
+                            if sf1[0] != sf0[1] {
+                                if board_paired || sf0[0] != nuts_high_value {
+                                    FindNuts::OneHole(sf0_hole)
+                                } else {
+                                    FindNuts::ThreeHoles([
+                                        sf0_hole,
+                                        Hole::unchecked([nuts_high_card, sf1_hole[0]]),
+                                        Hole::unchecked([nuts_high_card, sf1_hole[1]]),
+                                    ])
+                                }
+                            } else if board_paired {
+                                FindNuts::TwoHoles([sf0_hole, sf1_hole])
+                            } else if sf0[0] == nuts_high_value {
+                                FindNuts::ThreeHoles([
+                                    sf0_hole,
+                                    sf1_hole,
+                                    Hole::unchecked([nuts_high_card, sf1_hole[1]]),
+                                ])
+                            } else if let Some(sf2) = sf_solves.next() {
+                                if let Some(last) = sf2.last()
+                                    && last == Value::Ace
+                                {
+                                    FindNuts::ThreeHoles([
+                                        sf0_hole,
+                                        sf1_hole,
+                                        Hole::unchecked([ace, sf1_hole[0]]),
+                                    ])
+                                } else {
+                                    FindNuts::TwoHoles([sf0_hole, sf1_hole])
+                                }
+                            } else if sf1[1] == Value::Ace {
+                                FindNuts::ThreeHoles([
+                                    sf0_hole,
+                                    sf1_hole,
+                                    Hole::unchecked([ace, sf0_hole[0]]),
+                                ])
+                            } else {
+                                FindNuts::ThreeHoles([
+                                    sf0_hole,
+                                    sf1_hole,
+                                    Hole::unchecked([nuts_high_card, sf1_hole[0]]),
+                                ])
+                            }
+                        }
+                    }
+                }
+            }
+        } else if board_paired {
+            Self::quads_full_house(&cards)
+        } else {
+            let (_, straight) = Self::straight_scan(&cards, true);
+
+            match straight.first() {
+                Some(StraightSolve::None) => FindNuts::AnyTwo,
+                Some(StraightSolve::One(value)) => FindNuts::OneValue(*value),
+                Some(StraightSolve::Two(values)) => FindNuts::TwoValues(*values),
+                None => {
+                    FindNuts::PocketPair(cards.iter().map(Card::value).max().unwrap_or(Value::Ace))
+                }
+            }
+        }
     }
 
     pub fn is_nuts(&self, hole: Hole) -> bool {
         self.find_nuts() == hole
     }
 
-    fn _flush_cards(cards: &[Card]) -> Option<(Suit, Vec<Card>)> {
+    fn flush_cards(cards: &[Card]) -> Option<(Suit, Vec<Card>)> {
         cards
             .iter()
             .copied()
@@ -605,7 +717,7 @@ impl Board {
             .find(|(_, cards)| cards.len() >= 3)
     }
 
-    fn _straight_scan(cards: &[Card], only_first: bool) -> (Value, IndexSet<StraightSolve>) {
+    fn straight_scan(cards: &[Card], only_first: bool) -> (Value, IndexSet<StraightSolve>) {
         let mut values: BTreeSet<u8> = cards
             .iter()
             .map(Card::value)
@@ -666,11 +778,11 @@ impl Board {
         (remain_high, solves)
     }
 
-    fn _paired(cards: &[Card]) -> bool {
+    fn paired(cards: &[Card]) -> bool {
         !cards.iter().map(Card::value).all_unique()
     }
 
-    fn _quads_full_house(cards: &[Card]) -> FindNuts {
+    fn quads_full_house(cards: &[Card]) -> FindNuts {
         let value_map: ValueMap = cards.into();
         let sorted_values = value_map.to_sorted_values();
 
@@ -803,12 +915,21 @@ pub enum BoardCards {
     },
 }
 
-#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 enum StraightSolve {
     None,
     One(Value),
     Two([Value; 2]),
+}
+
+impl StraightSolve {
+    fn last(&self) -> Option<Value> {
+        match self {
+            Self::None => None,
+            Self::One(value) => Some(*value),
+            Self::Two(values) => Some(values[1]),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
