@@ -5,6 +5,7 @@ use std::{
     cmp::Ordering,
     collections::{BTreeMap, BTreeSet},
     fmt::{self, Display, Formatter},
+    hash::{Hash, Hasher},
     ops::Deref,
     str::FromStr,
 };
@@ -216,12 +217,18 @@ impl FromStr for Card {
     }
 }
 
-#[derive(Debug, Eq, Clone, Copy, Hash)]
+#[derive(Debug, Eq, Clone, Copy)]
 pub struct CardsCombined<const N: usize>([Card; N]);
 
 impl<const N: usize> PartialEq for CardsCombined<N> {
     fn eq(&self, other: &Self) -> bool {
         self.sorted() == other.sorted()
+    }
+}
+
+impl<const N: usize> Hash for CardsCombined<N> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.sorted().hash(state);
     }
 }
 
