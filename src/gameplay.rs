@@ -432,7 +432,7 @@ impl Hole {
         self.is_flush()
     }
 
-    fn is_of_values(&self, values: [Value; 2]) -> bool {
+    pub fn is_of_values(&self, values: UnpairedValues) -> bool {
         self.contains_value(values[0]) && self.contains_value(values[1])
     }
 
@@ -707,7 +707,7 @@ impl Board {
             match straight.first() {
                 Some(StraightSolve::None) => FindNuts::AnyTwo,
                 Some(StraightSolve::One(value)) => FindNuts::OneValue(*value),
-                Some(StraightSolve::Two(values)) => FindNuts::TwoValues(*values),
+                Some(StraightSolve::Two(values)) => FindNuts::TwoValues(UnpairedValues(*values)),
                 None => {
                     FindNuts::PocketPair(cards.iter().map(Card::value).max().unwrap_or(Value::Ace))
                 }
@@ -800,7 +800,7 @@ impl Board {
                 let single_high = sorted_values[1];
 
                 if pair > single_high {
-                    FindNuts::PocketOrTwo(pair, [pair, single_high])
+                    FindNuts::PocketOrTwo(pair, UnpairedValues([pair, single_high]))
                 } else {
                     FindNuts::PocketPair(pair)
                 }
@@ -816,7 +816,7 @@ impl Board {
                 let high = sorted_values[0];
                 let low = sorted_values[1];
 
-                FindNuts::PocketOrTwo(high, [high, low])
+                FindNuts::PocketOrTwo(high, UnpairedValues([high, low]))
             }
             [(4, 1), (1, 1)] => {
                 let quad = sorted_values[0];
@@ -841,7 +841,7 @@ impl Board {
                 let pair = sorted_values[1];
 
                 if pair > trip {
-                    FindNuts::PocketOrTwo(pair, [pair, trip])
+                    FindNuts::PocketOrTwo(pair, UnpairedValues([pair, trip]))
                 } else {
                     FindNuts::OneValue(trip)
                 }
@@ -852,7 +852,7 @@ impl Board {
                 let single = sorted_values[2];
 
                 if pair_low > single {
-                    FindNuts::PocketOrTwo(pair_high, [pair_high, pair_low])
+                    FindNuts::PocketOrTwo(pair_high, UnpairedValues([pair_high, pair_low]))
                 } else {
                     FindNuts::PocketPair(pair_high)
                 }
@@ -947,8 +947,8 @@ impl UnpairedValues {
 pub enum FindNuts {
     PocketPair(Value),
     OneValue(Value),
-    TwoValues([Value; 2]),
-    PocketOrTwo(Value, [Value; 2]),
+    TwoValues(UnpairedValues),
+    PocketOrTwo(Value, UnpairedValues),
     OneHole(Hole),
     TwoHoles([Hole; 2]),
     ThreeHoles([Hole; 3]),
