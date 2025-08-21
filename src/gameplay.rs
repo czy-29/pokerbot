@@ -1034,8 +1034,8 @@ impl StraightSolve {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
-pub struct HandValue(SortedHandValue);
+#[derive(Debug, Eq, Clone, Copy)]
+pub struct HandValue(SortedHandValue, Option<Suit>);
 
 impl Deref for HandValue {
     type Target = SortedHandValue;
@@ -1045,50 +1045,79 @@ impl Deref for HandValue {
     }
 }
 
+impl PartialEq for HandValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Ord for HandValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+impl PartialOrd for HandValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Hash for HandValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
 impl From<CardsCombined<5>> for HandValue {
     fn from(cards: CardsCombined<5>) -> Self {
         let is_flush = cards.is_flush();
         let is_straight = cards.is_straight();
-
-        if let Some(largest_value) = is_straight {
+        let flush_suit = if is_flush {
+            Some(cards[0].suit())
+        } else {
+            None
+        };
+        let hand_value = if let Some(largest_value) = is_straight {
             if is_flush {
                 if largest_value == Value::Ace {
-                    Self(SortedHandValue::RoyalFlush)
+                    SortedHandValue::RoyalFlush
                 } else {
-                    Self(SortedHandValue::StraightFlush(largest_value))
+                    SortedHandValue::StraightFlush(largest_value)
                 }
             } else {
-                Self(SortedHandValue::Straight(largest_value))
+                SortedHandValue::Straight(largest_value)
             }
         } else if is_flush {
-            Self(SortedHandValue::Flush(cards.to_sorted_values()))
+            SortedHandValue::Flush(cards.to_sorted_values())
         } else {
             let value_map: ValueMap = cards.as_slice().into();
             let sorted_values = value_map.to_sorted_values();
 
             // These unwrapping should not fail with valid poker hands
             match value_map.to_count_pairs().as_slice() {
-                [(4, 1), (1, 1)] => Self(SortedHandValue::Quads(sorted_values.try_into().unwrap())),
-                [(3, 1), (2, 1)] => Self(SortedHandValue::FullHouse(
-                    sorted_values.try_into().unwrap(),
-                )),
-                [(3, 1), (1, 2)] => Self(SortedHandValue::Trips(sorted_values.try_into().unwrap())),
-                [(2, 2), (1, 1)] => {
-                    Self(SortedHandValue::TwoPair(sorted_values.try_into().unwrap()))
-                }
-                [(2, 1), (1, 3)] => {
-                    Self(SortedHandValue::OnePair(sorted_values.try_into().unwrap()))
-                }
-                [(1, 5)] => Self(SortedHandValue::HighCard(sorted_values.try_into().unwrap())),
+                [(4, 1), (1, 1)] => SortedHandValue::Quads(sorted_values.try_into().unwrap()),
+                [(3, 1), (2, 1)] => SortedHandValue::FullHouse(sorted_values.try_into().unwrap()),
+                [(3, 1), (1, 2)] => SortedHandValue::Trips(sorted_values.try_into().unwrap()),
+                [(2, 2), (1, 1)] => SortedHandValue::TwoPair(sorted_values.try_into().unwrap()),
+                [(2, 1), (1, 3)] => SortedHandValue::OnePair(sorted_values.try_into().unwrap()),
+                [(1, 5)] => SortedHandValue::HighCard(sorted_values.try_into().unwrap()),
                 _ => unreachable!(), // Should not happen with valid poker hands
             }
-        }
+        };
+
+        Self(hand_value, flush_suit)
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Hash)]
+impl HandValue {
+    pub fn get_flush_suit(&self) -> Option<Suit> {
+        self.1
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum SortedHandValue {
-    #[default]
     RoyalFlush,
     StraightFlush(Value),
     Quads([Value; 2]),
