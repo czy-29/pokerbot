@@ -923,6 +923,27 @@ pub enum BoardCards {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct UnpairedValues([Value; 2]);
+
+impl Deref for UnpairedValues {
+    type Target = [Value; 2];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl UnpairedValues {
+    pub fn new(values: [Value; 2]) -> Option<Self> {
+        if values.iter().all_unique() {
+            Some(Self(values))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum FindNuts {
     PocketPair(Value),
     OneValue(Value),
